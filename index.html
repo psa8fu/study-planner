@@ -1,0 +1,2145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Study Planner</title>
+<style>
+:root{
+  --bg:#f6f5f1; --surface:#fff; --surface-2:#faf9f6; --ink:#25272b; --muted:#6e727a;
+  --line:#e8e5df; --line-strong:#d4d0c8; --accent:#4e7396; --accent-ink:#fff; --accent-soft:#e6eef5;
+  --danger:#b5524a; --today:#fbf8ef;
+  --locked:#5d6470; --locked-bg:#e9ebee;
+  --movable:#3f7f74; --movable-bg:#e2f0ec;
+  --skip:#9a6a2f; --skip-bg:#f7ecdc;
+  --opt:#7a6a9a; --opt-bg:#f0ecf6;
+  --radius:10px; --shadow:0 1px 2px rgba(0,0,0,.04),0 6px 20px rgba(0,0,0,.06);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#17181b; --surface:#202226; --surface-2:#25272c; --ink:#e6e6e3; --muted:#9a9ea6;
+    --line:#2f3238; --line-strong:#3d4047; --accent:#7ea3c4; --accent-ink:#111; --accent-soft:#26323d;
+    --danger:#de7f76; --today:#24252a;
+    --locked:#aeb5c0; --locked-bg:#2c3037;
+    --movable:#7cc2b5; --movable-bg:#1f3330;
+    --skip:#d9a865; --skip-bg:#352b1e;
+    --opt:#b6a6d6; --opt-bg:#2b2735;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.3);
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.01em}
+
+/* ---------- layout ---------- */
+.app{display:grid;grid-template-columns:330px minmax(0,1fr);grid-template-rows:auto 1fr;min-height:100vh}
+.topbar{grid-column:1/-1;display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--surface)}
+.brand{font-size:16px;display:flex;align-items:center;gap:8px;margin-right:auto}
+.brand-mark{width:22px;height:22px;border-radius:6px;background:var(--accent);display:inline-grid;place-items:center;color:var(--accent-ink);font-size:12px}
+.weeknav{display:flex;align-items:center;gap:6px}
+.weeklabel{min-width:150px;text-align:center;font-weight:500}
+aside{border-right:1px solid var(--line);background:var(--surface-2);padding:16px;overflow:auto;max-height:calc(100vh - 57px)}
+main{padding:16px 20px;min-width:0;display:flex;flex-direction:column;gap:12px}
+
+/* ---------- buttons ---------- */
+.btn{border:1px solid var(--line-strong);background:var(--surface);border-radius:8px;padding:6px 12px;cursor:pointer;transition:background .15s,border-color .15s}
+.btn:hover{background:var(--surface-2);border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.ghost:hover{background:var(--line)}
+.btn.danger{color:var(--danger)}
+.btn.icon{padding:6px 9px;line-height:1}
+.btn.sm{padding:3px 9px;font-size:13px}
+
+/* ---------- sidebar ---------- */
+.tabs{display:flex;gap:2px;background:var(--line);padding:3px;border-radius:9px;margin-bottom:14px}
+.tab{flex:1;border:0;background:transparent;padding:6px 4px;border-radius:7px;cursor:pointer;color:var(--muted);font-weight:500}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.panel-head h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.item{width:100%;display:flex;align-items:center;gap:10px;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:var(--radius);padding:9px 10px;cursor:pointer;transition:border-color .15s,transform .15s}
+.item:hover{border-color:var(--line-strong)}
+.item:active{transform:scale(.995)}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.item-main{flex:1;min-width:0;display:flex;flex-direction:column}
+.item-title{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item-sub{font-size:12px;color:var(--muted)}
+.meters{display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--muted);align-items:flex-end}
+.pips{display:inline-flex;gap:2px;margin-left:4px;vertical-align:middle}
+.pips i{width:5px;height:5px;border-radius:50%;background:var(--line-strong)}
+.pips i.on{background:var(--ink)}
+.badge{font-size:11px;padding:1px 7px;border-radius:99px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.badge.locked{background:var(--locked-bg);color:var(--locked)}
+.badge.movable{background:var(--movable-bg);color:var(--movable)}
+.badge.skippable{background:var(--skip-bg);color:var(--skip)}
+.badge.optional{background:var(--opt-bg);color:var(--opt)}
+.empty{border:1px dashed var(--line-strong);border-radius:var(--radius);padding:18px 14px;text-align:center;color:var(--muted);font-size:13px}
+.empty strong{display:block;color:var(--ink);font-weight:500;margin-bottom:2px}
+
+/* ---------- forms ---------- */
+.form{display:flex;flex-direction:column;gap:12px}
+.field{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.field>span{font-weight:500}
+.field input,.field select{border:1px solid var(--line-strong);background:var(--surface);border-radius:8px;padding:7px 9px;color:var(--ink);min-width:0}
+.field input[type=color]{padding:2px;height:36px;width:56px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>.field{flex:1;min-width:110px}
+fieldset{border:0;margin:0;padding:0;min-width:0}
+legend{font-size:13px;font-weight:500;color:var(--muted);padding:0;margin-bottom:5px}
+.seg{display:flex;flex-wrap:wrap;gap:4px;position:relative}
+.seg input{position:absolute;opacity:0;pointer-events:none;left:0;top:0;width:1px;height:1px;margin:0}   /* hidden but still focusable; pinned so it never widens the page */
+.seg label{border:1px solid var(--line-strong);border-radius:8px;padding:5px 11px;cursor:pointer;background:var(--surface);transition:background .15s,border-color .15s;user-select:none}
+.seg input:checked+label{background:var(--accent-soft);border-color:var(--accent);color:var(--ink)}
+.seg input:focus-visible+label{outline:2px solid var(--accent);outline-offset:2px}
+.hint{font-size:12px;color:var(--muted);margin-top:4px}
+.error{color:var(--danger);font-size:13px;min-height:1em}
+.flex-opts{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.flex-opts label{display:flex;flex-direction:column;gap:2px;padding:8px 10px}
+.flex-opts label small{color:var(--muted);font-size:11.5px;line-height:1.3}
+
+/* ---------- dialog ---------- */
+dialog{border:0;border-radius:14px;padding:0;width:min(480px,calc(100vw - 32px));background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+dialog::backdrop{background:rgba(20,22,26,.35);backdrop-filter:blur(2px)}
+dialog[open]{animation:pop .18s ease-out}
+@keyframes pop{from{transform:translateY(6px) scale(.98)}to{transform:none}}  /* no opacity: stays readable even if the animation is paused */
+.dlg-body{padding:20px;display:flex;flex-direction:column;gap:14px;max-height:calc(100vh - 80px);overflow:auto}
+.dlg-body h2{font-size:17px}
+.dlg-actions{display:flex;gap:8px;align-items:center;padding-top:4px}
+.spacer{flex:1}
+
+/* ---------- calendar ---------- */
+.cal-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.legend{display:flex;gap:6px;flex-wrap:wrap}
+.cal{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:auto;max-height:calc(100vh - 150px);box-shadow:0 1px 2px rgba(0,0,0,.03)}
+.cal-grid{display:grid;grid-template-columns:52px repeat(7,minmax(86px,1fr));min-width:660px}
+.cal-head{position:sticky;top:0;z-index:5;background:var(--surface);border-bottom:1px solid var(--line);padding:8px 6px;text-align:center;font-size:12px;color:var(--muted)}
+.cal-head b{display:block;font-size:16px;color:var(--ink);font-weight:600}
+.cal-head.today b{color:var(--accent)}
+.cal-corner{position:sticky;left:0;z-index:6}
+.gutter{position:sticky;left:0;z-index:4;background:var(--surface);border-right:1px solid var(--line)}
+.hour{position:absolute;right:6px;font-size:11px;color:var(--muted);transform:translateY(-50%)}
+.day{position:relative;border-left:1px solid var(--line)}
+.day.today{background-color:var(--today)}
+.offhours{position:absolute;left:0;right:0;background:repeating-linear-gradient(45deg,transparent 0 6px,var(--line) 6px 7px);opacity:.6;pointer-events:none}
+.nowline{position:absolute;left:0;right:0;height:2px;background:var(--danger);z-index:3;pointer-events:none}
+.nowline::before{content:"";position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--danger)}
+
+.blk{position:absolute;border-radius:7px;padding:3px 6px;font-size:12px;line-height:1.25;overflow:hidden;cursor:pointer;text-align:left;border:1px solid transparent;z-index:2;transition:box-shadow .15s,transform .15s,opacity .2s;display:flex;flex-direction:column;gap:1px}
+.blk:hover{box-shadow:0 2px 10px rgba(0,0,0,.12);z-index:4}
+.blk .t{font-weight:600;display:flex;align-items:center;gap:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.blk .s{color:var(--muted);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.blk svg{flex:none}
+.blk.locked{background:var(--locked-bg);border-left:3px solid var(--locked);color:var(--ink)}
+.blk.locked .t{color:var(--locked)}
+.blk.movable{background:var(--movable-bg);border-color:var(--movable)}
+.blk.movable .t{color:var(--movable)}
+.blk.skippable{background:repeating-linear-gradient(135deg,var(--skip-bg) 0 6px,var(--surface) 6px 12px);border:1px dashed var(--skip)}
+.blk.skippable .t{color:var(--skip)}
+.blk.optional{background:var(--opt-bg);border:1px dotted var(--opt);opacity:.85}
+.blk.optional .t{color:var(--opt)}
+
+/* study blocks: a wrapper (drag target) holding the main button and the ✓ button */
+.blk.study{padding:0;background:color-mix(in srgb,var(--c) 16%,var(--surface));border:1px solid color-mix(in srgb,var(--c) 45%,transparent);border-left:3px solid var(--c)}
+.blk-main{border:0;background:none;color:var(--ink);font:inherit;text-align:left;width:100%;height:100%;padding:3px 22px 3px 6px;display:flex;flex-direction:column;gap:1px;cursor:inherit;border-radius:inherit;overflow:hidden}
+.blk-main:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.blk .pin{color:var(--c);font-size:14px;line-height:0;margin-right:1px}
+.chk{position:absolute;top:3px;right:3px;width:16px;height:16px;border-radius:50%;border:1.5px solid var(--c);background:var(--surface);display:grid;place-items:center;padding:0;cursor:pointer;color:transparent;transition:background .15s,color .15s,transform .15s}
+.chk:hover{color:var(--c);transform:scale(1.1)}
+.chk[aria-pressed="true"]{background:var(--c);color:#fff}
+.blk.study.done{opacity:.6}
+.blk.study.done .t{text-decoration:line-through}
+.blk.study.missed{border-style:dashed;opacity:.55}
+.blk[data-drag]{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.blk.movable.pinned{border-style:solid;border-width:1px 1px 1px 3px}
+.blk.dragging{cursor:grabbing;z-index:10;transition:none;box-shadow:0 10px 28px rgba(0,0,0,.22);transform:scale(1.02)}
+.blk.invalid{outline:2px solid var(--danger);outline-offset:-1px}
+.drag-time{position:absolute;right:4px;bottom:2px;font-size:10.5px;font-weight:600;background:var(--surface);color:var(--ink);padding:0 5px;border-radius:4px;white-space:nowrap;max-width:calc(100% - 8px);overflow:hidden;text-overflow:ellipsis}
+.blk.invalid .drag-time{color:var(--danger)}
+.drop-window{position:absolute;left:0;right:0;z-index:1;pointer-events:none;background:color-mix(in srgb,var(--movable) 14%,transparent);border-block:2px dashed var(--movable);animation:fadein .15s}
+.drop-window span{position:absolute;top:2px;left:4px;font-size:10.5px;color:var(--movable);font-weight:600}
+.cal.dragging-study .day.drop-ok{background-color:color-mix(in srgb,var(--accent) 7%,transparent)}
+.cal.dragging-study .day.drop-no{background-color:color-mix(in srgb,var(--ink) 7%,transparent)}
+.cal.dragging-study .day.drop-no>.blk:not(.dragging){opacity:.45}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+
+/* explain-why tooltip */
+.tip{position:fixed;z-index:60;width:max-content;max-width:290px;background:var(--surface);color:var(--ink);border:1px solid var(--line-strong);box-shadow:var(--shadow);border-radius:10px;padding:10px 12px;font-size:12.5px;line-height:1.4;pointer-events:none}
+.tip-head{display:flex;justify-content:space-between;gap:10px;align-items:baseline;border-left:3px solid var(--c);padding-left:7px;margin-bottom:6px}
+.tip-head span{color:var(--muted);font-size:12px;white-space:nowrap}
+.tip-sub{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:2px}
+.tip ul,.why-list{margin:0;padding-left:16px;display:flex;flex-direction:column;gap:2px}
+.tip-foot{margin-top:6px;color:var(--muted);font-size:11.5px}
+
+/* "This session" panel in the course editor */
+.session-box{border:1px solid var(--line);border-left:3px solid var(--c);border-radius:10px;padding:10px 12px;background:var(--surface-2);display:flex;flex-direction:column;gap:6px;font-size:13px}
+.session-head{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.session-head span{color:var(--muted)}
+.row-btns{display:flex;gap:6px;flex-wrap:wrap}
+.blk.conflict{outline:2px solid var(--danger);outline-offset:-1px}
+.summary{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-right:auto;font-size:13px;color:var(--muted)}
+.summary b{color:var(--ink);font-weight:600}
+.chip{font-size:12px;padding:2px 9px;border-radius:99px;border:1px solid var(--line-strong)}
+.chip.warn{background:var(--skip-bg);color:var(--skip);border-color:transparent}
+.chip.ok{background:var(--movable-bg);color:var(--movable);border-color:transparent}
+.chip.muted{color:var(--muted)}
+.item-sub.short{color:var(--skip)}
+.blk.ghost{z-index:1;background:transparent;border:1px dashed var(--line-strong);opacity:.7;justify-content:flex-end}
+.blk.ghost .t{text-decoration:line-through;color:var(--muted);font-weight:500}
+.blk.ghost:hover{opacity:1;box-shadow:none}
+
+/* conflict banner */
+.banner{border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;animation:slide .22s ease-out}
+.banner.warn{background:var(--skip-bg);border:1px solid color-mix(in srgb,var(--skip) 30%,transparent)}
+.banner.info{background:var(--surface);border:1px solid var(--line)}
+.banner:focus{outline:none}
+@keyframes slide{from{transform:translateY(-4px)}to{transform:none}}  /* no opacity: text stays readable even if the animation is paused */
+.banner-head{display:flex;align-items:center;gap:8px}
+.banner-head h2{font-size:15px}
+.banner-icon{width:20px;height:20px;border-radius:50%;background:var(--skip);color:var(--skip-bg);display:grid;place-items:center;font-weight:700;font-size:12px;flex:none}
+.banner-sub{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-top:2px}
+.banner-note{margin:0;font-size:13px;color:var(--muted)}
+.short-list,.sugg-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.short-list li{display:flex;gap:8px;align-items:baseline;font-size:13.5px}
+.short-list .dot{transform:translateY(1px)}
+.short-amt{color:var(--skip)}
+.muted{color:var(--muted)}
+.sugg{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 12px;flex-wrap:wrap}
+.sugg-text{flex:1;min-width:200px;display:flex;flex-direction:column;gap:2px}
+.sugg-text small{color:var(--skip);display:flex;align-items:center;gap:4px}
+.sugg-btns{display:flex;gap:6px}
+.skipped-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13px}
+.skip-chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px dashed var(--line-strong);border-radius:99px;padding:2px 4px 2px 10px;text-decoration:line-through;text-decoration-color:var(--muted)}
+.skip-chip .linkbtn{text-decoration:none}
+.linkbtn{border:0;background:none;color:var(--accent);cursor:pointer;padding:2px 6px;border-radius:6px;font-size:13px}
+.linkbtn:hover{background:var(--accent-soft)}
+.cal-empty{position:absolute;inset:60px 0 0 52px;display:grid;place-items:center;pointer-events:none;z-index:6}
+.cal-empty .card{pointer-events:auto;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px 24px;text-align:center;max-width:340px;box-shadow:var(--shadow)}
+.cal-empty h3{font-size:16px;margin-bottom:4px}
+.cal-empty p{color:var(--muted);margin:0 0 14px}
+.cal-empty .row{justify-content:center}
+
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:9px;font-size:13px;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;z-index:100}
+.toast.show{opacity:1;transform:translateX(-50%)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* ---------- Stage 4: header controls ---------- */
+.skip{position:absolute;left:-999px;top:8px;z-index:200;background:var(--accent);color:var(--accent-ink);padding:8px 12px;border-radius:8px;text-decoration:none}
+.skip:focus{left:16px}
+.cal:focus{outline:none}
+.viewtoggle{display:flex;background:var(--line);padding:2px;border-radius:8px;gap:2px}
+.vt{border:0;background:transparent;padding:4px 10px;border-radius:6px;cursor:pointer;color:var(--muted);font-size:13px;transition:background .15s,color .15s}
+.vt[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.menu{position:relative}
+.menu summary{list-style:none;user-select:none}
+.menu summary::-webkit-details-marker{display:none}
+.menu-pop{position:absolute;right:0;top:calc(100% + 6px);z-index:40;min-width:190px;background:var(--surface);border:1px solid var(--line-strong);border-radius:10px;box-shadow:var(--shadow);padding:4px;display:flex;flex-direction:column;animation:pop .14s ease-out}
+.menu-pop button{border:0;background:none;text-align:left;padding:7px 10px;border-radius:7px;cursor:pointer;font-size:13.5px}
+.menu-pop button:hover,.menu-pop button:focus-visible{background:var(--surface-2)}
+.menu-pop .danger{color:var(--danger)}
+.menu-pop hr{border:0;border-top:1px solid var(--line);margin:4px 2px}
+
+/* ---------- progress sidebar ---------- */
+.week-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px;margin-bottom:16px;display:flex;flex-direction:column;gap:7px}
+.wc-row{display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap}
+.wc-row span,.wc-sub{font-size:12.5px;color:var(--muted)}
+.wc-sub b{color:var(--ink);font-weight:500}
+.short{color:var(--skip)}
+.course-card{align-items:flex-start}
+.count{flex:none;width:44px;height:44px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:color-mix(in srgb,var(--c) 14%,var(--surface));color:var(--ink);line-height:1}
+.count b{font-size:17px;font-weight:650}
+.count small{font-size:10px;color:var(--muted);margin-top:2px}
+.count.urgent{background:var(--c);color:#fff}
+.count.urgent small{color:rgba(255,255,255,.85)}
+.bar{display:flex;height:6px;border-radius:99px;background:var(--line);overflow:hidden;margin:5px 0 3px}
+.bar i{display:block;height:100%;transition:width .35s ease}
+.bar-done{background:var(--c)}
+.bar-plan{background:color-mix(in srgb,var(--c) 35%,transparent)}
+.meters-inline{display:flex;gap:10px;align-items:center}
+.empty-act{margin-top:10px}
+.kbd-help{margin:18px 2px 0;font-size:11.5px;color:var(--muted);line-height:1.8}
+kbd{font:11px ui-monospace,SFMono-Regular,Consolas,monospace;border:1px solid var(--line-strong);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:var(--surface)}
+
+/* ---------- calendar polish ---------- */
+.exam-pill{display:block;margin:4px auto 0;max-width:100%;font-size:10.5px;font-weight:600;color:#fff;background:var(--c);border-radius:99px;padding:1px 7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.blk.enter{animation:blkin .28s ease-out}
+@keyframes blkin{from{transform:translateY(4px) scale(.97)}to{transform:none}}  /* transform only, so a paused animation never hides a block */
+.blk.ghost.dropped{border-style:dotted;border-color:var(--opt);cursor:default}
+.blk.ghost.dropped .t{text-decoration:none}
+.blk .s.why{color:var(--muted);font-style:italic}
+body:not(.detailed) .blk .t{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+
+/* ---------- course deadlines editor ---------- */
+.dl-box legend small{font-weight:400}
+.dl-list{display:flex;flex-direction:column;gap:8px;margin-bottom:8px}
+dialog.mid{width:min(640px,calc(100vw - 32px))}
+/* two lines per deadline: [type][title][date][✕] / [prep h][weekly][until][estimate] */
+.dl-row{display:grid;grid-template-columns:136px minmax(0,1fr) 150px 34px;grid-template-areas:"type title date del" "hours rep until until" "est est est est";gap:6px 8px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2)}
+.dl-type{grid-area:type}.dl-title{grid-area:title}.dl-date{grid-area:date}.dl-del{grid-area:del;justify-self:end}
+.dl-hours-wrap{grid-area:hours}.dl-rep{grid-area:rep}.dl-until-wrap{grid-area:until}.dl-est{grid-area:est}
+.dl-row select,.dl-row input:not([type=checkbox]){border:1px solid var(--line-strong);background:var(--surface);border-radius:7px;padding:5px 7px;color:var(--ink);min-width:0;font-size:13px;width:100%}
+.dl-hours-wrap,.dl-until-wrap{font-size:12.5px;color:var(--muted);white-space:nowrap}
+.dl-hours-wrap input{width:62px!important}
+.dl-until-wrap input{width:auto!important;margin-left:4px}
+.dl-est{font-size:12px;color:var(--muted)}
+@media (max-width:560px){
+  .dl-row{grid-template-columns:1fr 1fr 34px;grid-template-areas:"type date del" "title title title" "hours rep rep" "until until until" "est est est"}
+}
+
+/* ---------- Quick add ---------- */
+dialog.wide{width:min(860px,calc(100vw - 32px))}
+.field textarea{border:1px solid var(--line-strong);background:var(--surface);border-radius:8px;padding:8px 10px;color:var(--ink);font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;resize:vertical;min-height:96px}
+.field span small{font-weight:400;color:var(--muted)}
+code{font:12px ui-monospace,SFMono-Regular,Consolas,monospace;background:var(--surface-2);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+.qa-format-box{display:flex;flex-direction:column;gap:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.qa-format-label{font-size:12.5px;color:var(--muted)}
+.qa-format{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
+.qa-format span{background:var(--accent-soft);color:var(--ink);border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);border-radius:7px;padding:3px 10px;font-size:13px;font-weight:600}
+.qa-format span.opt{background:transparent;border-style:dashed;font-weight:500}
+.qa-format span small{font-weight:400;color:var(--muted)}
+.qa-format i{font-style:normal;font-weight:700;color:var(--muted);padding:0 1px}
+.qa-example{font-size:12.5px}
+.qa-rows{display:flex;flex-direction:column;gap:10px}
+.qa-row{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface-2);display:flex;flex-direction:column;gap:8px;animation:slide .2s ease-out}
+.qa-row.bad{border-color:color-mix(in srgb,var(--skip) 55%,transparent)}
+.qa-src{padding:0;font-size:12.5px;color:var(--muted);max-width:100%}
+.qa-src code{white-space:pre-wrap;word-break:break-word}
+.qa-msgs{display:flex;flex-wrap:wrap;gap:6px;font-size:12px}
+.qa-bad{color:var(--skip);font-weight:500}
+.qa-note{color:var(--muted);font-style:italic}
+/* two lines per class: [name][location][flexibility] / [days][start][end] */
+.qa-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 122px 122px;grid-template-areas:"name name loc flex" "days days start end";gap:8px;align-items:end}
+.qa-grid .field{min-width:0}
+.qa-name{grid-area:name}.qa-loc{grid-area:loc}.qa-flex{grid-area:flex}.qa-days{grid-area:days}.qa-start{grid-area:start}.qa-end{grid-area:end}
+.qa-grid input,.qa-grid select{width:100%}
+.seg.mini{gap:2px;flex-wrap:wrap}
+.seg.mini label{padding:5px 6px;font-size:12px;min-width:26px;text-align:center}
+.qa-opts{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;font-size:13px}
+.chk-line{display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.chk-line input[type=checkbox]{width:15px;height:15px;accent-color:var(--accent)}
+.qa-date{border:1px solid var(--line-strong);background:var(--surface);border-radius:7px;padding:3px 6px;color:var(--ink)}
+@media (max-width:760px){
+  .qa-grid{grid-template-columns:1fr 1fr;grid-template-areas:"name name" "days days" "start end" "loc loc" "flex flex"}
+}
+
+@media (max-width:860px){
+  .app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto 1fr}
+  aside{border-right:0;border-top:1px solid var(--line);max-height:none;order:3}   /* phones: calendar first, setup below */
+  main{order:2}
+  .kbd-help{display:none}
+  .topbar{padding:10px 16px}
+  main{padding:12px 16px}
+  .cal{max-height:75vh}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<a class="skip" href="#cal">Skip to calendar</a>
+<div class="app">
+  <header class="topbar">
+    <h1 class="brand"><span class="brand-mark" aria-hidden="true">✓</span>Study Planner</h1>
+    <nav class="weeknav" aria-label="Week navigation">
+      <button class="btn icon" id="prevWeek" aria-label="Previous week" title="Previous week ( [ )">‹</button>
+      <span class="weeklabel" id="weekLabel" aria-live="polite"></span>
+      <button class="btn icon" id="nextWeek" aria-label="Next week" title="Next week ( ] )">›</button>
+      <button class="btn sm" id="thisWeek" title="This week (T)">Today</button>
+    </nav>
+    <div class="viewtoggle" role="group" aria-label="Detail level">
+      <button class="vt" id="viewSimple" aria-pressed="true">Simple</button>
+      <button class="vt" id="viewDetailed" aria-pressed="false" title="Toggle with D">Detailed</button>
+    </div>
+    <details class="menu" id="dataMenu">
+      <summary class="btn sm">Data <span aria-hidden="true">▾</span></summary>
+      <div class="menu-pop" role="menu">
+        <button role="menuitem" data-act="load-sample">Load sample data</button>
+        <button role="menuitem" id="exportBtn">Export JSON</button>
+        <button role="menuitem" id="importBtn">Import JSON…</button>
+        <hr>
+        <button role="menuitem" class="danger" id="clearAll">Clear all</button>
+      </div>
+    </details>
+    <input type="file" id="importFile" accept="application/json,.json" hidden>
+  </header>
+
+  <aside aria-label="Planner setup">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="courses" id="tab-courses" aria-controls="panel">Courses</button>
+      <button class="tab" role="tab" data-tab="commitments" id="tab-commitments" aria-controls="panel">Commitments</button>
+      <button class="tab" role="tab" data-tab="settings" id="tab-settings" aria-controls="panel">Settings</button>
+    </div>
+    <section id="panel" role="tabpanel"></section>
+    <p class="kbd-help"><b>Shortcuts</b> <kbd>[</kbd> <kbd>]</kbd> weeks · <kbd>T</kbd> today · <kbd>D</kbd> detail · <kbd>Alt</kbd>+arrows move the focused block · <kbd>Esc</kbd> close</p>
+  </aside>
+
+  <main>
+    <section id="banner" class="banner" aria-live="polite" aria-label="Schedule conflicts" hidden></section>
+    <div class="cal-toolbar">
+      <div class="summary" id="summary" aria-live="polite"></div>
+      <div class="legend" aria-label="Flexibility legend" id="legend"></div>
+    </div>
+    <div class="cal" id="cal" tabindex="-1" aria-label="Weekly calendar"></div>
+  </main>
+</div>
+
+<dialog id="dlg" aria-labelledby="dlgTitle"><form id="dlgForm" class="dlg-body" novalidate></form></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="tip" id="tip" role="tooltip" hidden></div>
+
+<script>
+"use strict";
+/* =========================================================
+   Constants & helpers
+   ========================================================= */
+const STORE_KEY = 'studyPlanner.v1';
+const PPM = 0.9;                       // pixels per minute on the grid
+const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const PALETTE = ['#5b84b1','#6aa37a','#d0913a','#b8625a','#8e72a8','#4f9a94','#c27ba0','#7d8a52'];
+const PREF_WINDOWS = { morning:[360,720], afternoon:[720,1020], evening:[1020,1260], night:[1260,1440] };
+const FLEX = {
+  locked:   { label:'Locked',    desc:'Never moves or gets skipped' },
+  movable:  { label:'Movable',   desc:'Slides within an earliest–latest window' },
+  skippable:{ label:'Skippable', desc:'Can be dropped if the week is overloaded' },
+  optional: { label:'Optional',  desc:'Only scheduled if there is free time' },
+};
+// Kinds of deadlines a course can have.
+// hours: default prep time (scaled by difficulty/confidence); exams use the original formula instead.
+// lead: how many days before the due date prep starts (null = from today).
+const DL_TYPES = {
+  exam:         { label:'Exam',         short:'Exam',    hours:null, lead:null },
+  project:      { label:'Project',      short:'Project', hours:8,    lead:null },
+  paper:        { label:'Paper / essay', short:'Paper',  hours:6,    lead:null },
+  presentation: { label:'Presentation', short:'Present', hours:4,    lead:14 },
+  pset:         { label:'Problem set',  short:'P-set',   hours:3,    lead:7 },
+  quiz:         { label:'Quiz',         short:'Quiz',    hours:1,    lead:5 },
+  reading:      { label:'Reading',      short:'Reading', hours:1.5,  lead:4 },
+  other:        { label:'Other',        short:'Due',     hours:2,    lead:7 },
+};
+const MAX_LEAD = 14;
+
+const ICON = {
+  locked:'<svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7" width="10" height="7.5" rx="1.5" fill="currentColor"/><path d="M5 7V5a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="1.7" fill="none"/></svg>',
+  movable:'<svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 8h13M4.5 5 1.5 8l3 3M11.5 5l3 3-3 3" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  skippable:'<svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3l7 5-7 5z" fill="currentColor"/><rect x="11" y="3" width="2.2" height="10" rx="1" fill="currentColor"/></svg>',
+  optional:'<svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.7" fill="none" stroke-dasharray="2.4 2"/></svg>',
+};
+
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const uid = () => Math.random().toString(36).slice(2, 10);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clamp = (n, a, b) => Math.min(b, Math.max(a, n));
+
+// time: minutes since midnight
+const toMin = t => { if (!t) return 0; const [h, m] = t.split(':').map(Number); return h * 60 + (m || 0); };
+const toHHMM = m => String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+function fmtTime(m) {
+  let h = Math.floor(m / 60), mm = m % 60;
+  const ap = (h % 24) >= 12 ? 'pm' : 'am';
+  h = h % 12 || 12;
+  return h + (mm ? ':' + String(mm).padStart(2, '0') : '') + ap;
+}
+const fmtRange = (a, b) => fmtTime(a) + '–' + fmtTime(b);
+function fmtDur(min) { const h = Math.floor(min / 60), m = min % 60; return (h ? h + 'h' : '') + (m ? (h ? ' ' : '') + m + 'm' : (h ? '' : '0m')); }
+
+// dates (local, no timezone surprises)
+const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const parseYmd = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const startOfDay = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const mondayOf = d => addDays(startOfDay(d), -((d.getDay() + 6) % 7));
+const daysUntil = s => Math.round((parseYmd(s) - startOfDay(new Date())) / 864e5);
+const fmtDate = (d, o = { month:'short', day:'numeric' }) => d.toLocaleDateString(undefined, o);
+
+/* =========================================================
+   State & persistence
+   ========================================================= */
+function defaultState() {
+  return {
+    version: 1,
+    settings: { wake:'07:00', sleep:'23:00', sessionLen:50, breakLen:10, maxStudyHours:4, preferred:['morning','afternoon'] },
+    courses: [],        // {id,name,color,difficulty,confidence,deadlines:[{id,type,title,date,hours,repeat,until}]}
+    commitments: [],    // {id,name,days:[0-6],flex,start,end,earliest,latest,duration}
+    weeks: {},          // per-week overrides (moves, skips, completions) – used from Stage 2 on
+    ui: { weekOffset:0, tab:'courses', detailed:false },
+  };
+}
+function migrate(s) {
+  const d = defaultState();
+  if (!s || typeof s !== 'object') return d;
+  const out = {
+    ...d, ...s,
+    settings: { ...d.settings, ...(s.settings || {}) },
+    ui: { ...d.ui, ...(s.ui || {}) },
+    courses: Array.isArray(s.courses) ? s.courses : [],
+    commitments: Array.isArray(s.commitments) ? s.commitments : [],
+    weeks: s.weeks && typeof s.weeks === 'object' ? s.weeks : {},
+  };
+  // older versions stored one exam date per course: turn it into an Exam deadline
+  const examKey = {};
+  out.courses = out.courses.map(c => {
+    c = { ...c, id: c.id || uid() };
+    if (!Array.isArray(c.deadlines)) {
+      c.deadlines = c.examDate ? [{ id: 'ex-' + c.id, type: 'exam', title: 'Exam', date: c.examDate, hours: null, repeat: false, until: '' }] : [];
+      if (c.examDate) examKey[c.id] = 'ex-' + c.id + '@' + c.examDate;
+    }
+    delete c.examDate;
+    c.deadlines = c.deadlines.filter(x => x && x.date).map(x => ({ id: x.id || uid(), type: DL_TYPES[x.type] ? x.type : 'other', title: x.title || '', date: x.date,
+      hours: +x.hours > 0 ? +x.hours : null, repeat: !!x.repeat, until: x.until || '' }));
+    return c;
+  });
+  // link saved study sessions from the old version to that exam
+  Object.values(out.weeks).forEach(w => (w.sessions || []).forEach(p => { if (!p.tk && examKey[p.courseId]) p.tk = examKey[p.courseId]; }));
+  return out;
+}
+function load() { try { const raw = localStorage.getItem(STORE_KEY); if (raw) return migrate(JSON.parse(raw)); } catch (e) {} return defaultState(); }
+function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} }
+let state = load();
+
+function commit(msg) { save(); render(); if (msg) toast(msg); }
+
+const wakeMin = () => toMin(state.settings.wake);
+const sleepMin = () => { const s = toMin(state.settings.sleep); return s === 0 ? 1440 : s; };
+const weekStart = () => addDays(mondayOf(new Date()), state.ui.weekOffset * 7);
+
+/* =========================================================
+   Sample data (generic, dates relative to today)
+   ========================================================= */
+function sampleState() {
+  const s = defaultState();
+  const today = startOfDay(new Date());
+  const exam = (d, title) => [{ id:uid(), type:'exam', title, date:ymd(d), hours:null, repeat:false, until:'' }];
+  // one exam per week, each on that class's meeting day: first a Thursday at least 2 days away,
+  // then Wednesday, Tuesday and Friday of the following three weeks
+  let first = addDays(today, 2);
+  while (first.getDay() !== 4) first = addDays(first, 1);
+  const wk = mondayOf(first);
+  s.courses = [
+    { id:uid(), name:'Chemistry',  color:'#b8625a', difficulty:4, confidence:2, deadlines:exam(first, 'Exam 1') },
+    { id:uid(), name:'Calculus',   color:'#5b84b1', difficulty:4, confidence:3, deadlines:exam(addDays(wk, 9), 'Midterm') },
+    { id:uid(), name:'History',    color:'#d0913a', difficulty:3, confidence:3, deadlines:exam(addDays(wk, 15), 'Midterm') },
+    { id:uid(), name:'Psychology', color:'#6aa37a', difficulty:2, confidence:4, deadlines:exam(addDays(wk, 25), 'Exam 1') },
+  ];
+  // 2 classes on Mon/Wed/Fri, 2 on Tue/Thu, one club, and the gym
+  s.commitments = [
+    { id:uid(), name:'Calculus',     days:[0,2,4], flex:'locked',    start:'09:00', end:'09:50', location:'Math Building 101' },
+    { id:uid(), name:'Psychology',   days:[0,2,4], flex:'locked',    start:'11:00', end:'11:50', location:'Hall 204' },
+    { id:uid(), name:'Chemistry',    days:[1,3],   flex:'locked',    start:'09:30', end:'10:45', location:'Science Center 110' },
+    { id:uid(), name:'History',      days:[1,3],   flex:'locked',    start:'14:00', end:'15:15', location:'Humanities 302' },
+    { id:uid(), name:'Club meeting', days:[2],     flex:'skippable', start:'19:00', end:'20:00', location:'Student Center' },
+    { id:uid(), name:'Gym',          days:[0,2,4], flex:'movable',   earliest:'16:00', latest:'20:00', duration:60 },
+  ];
+  s.ui.tab = 'courses';
+  return s;
+}
+
+/* =========================================================
+   Rendering
+   ========================================================= */
+function render() {
+  refreshPlan();                 // rebuild the week's schedule from the current data
+  // view mode: a class on <body> lets CSS adjust density; buttons report which is on
+  document.body.classList.toggle('detailed', !!state.ui.detailed);
+  $('#viewSimple').setAttribute('aria-pressed', !state.ui.detailed);
+  $('#viewDetailed').setAttribute('aria-pressed', !!state.ui.detailed);
+  renderBanner();
+  renderSummary();
+  renderWeekLabel();
+  renderTabs();
+  renderPanel();
+  renderLegend();
+  renderCalendar();
+}
+
+function renderWeekLabel() {
+  const ws = weekStart(), we = addDays(ws, 6);
+  const sameMonth = ws.getMonth() === we.getMonth();
+  $('#weekLabel').textContent = fmtDate(ws) + ' – ' + (sameMonth ? we.getDate() : fmtDate(we)) + ', ' + we.getFullYear();
+}
+
+function renderTabs() {
+  $$('.tab').forEach(t => {
+    const on = t.dataset.tab === state.ui.tab;
+    t.setAttribute('aria-selected', on);
+    t.tabIndex = on ? 0 : -1;
+  });
+  $('#panel').setAttribute('aria-labelledby', 'tab-' + state.ui.tab);
+}
+
+function renderPanel() {
+  const p = $('#panel');
+  if (state.ui.tab === 'courses') p.innerHTML = coursesPanel();
+  else if (state.ui.tab === 'commitments') p.innerHTML = commitmentsPanel();
+  else p.innerHTML = settingsPanel();
+  if (state.ui.tab === 'settings') bindSettings();
+}
+
+const pips = n => '<span class="pips" aria-hidden="true">' + [1,2,3,4,5].map(i => `<i class="${i <= n ? 'on' : ''}"></i>`).join('') + '</span>';
+
+// "Midterm (exam) Fri, Nov 13 · in 4 days" for the next thing due
+function examText(c) {
+  const nx = upcoming(c, 1)[0];
+  if (!nx) return (c.deadlines || []).length ? 'No upcoming deadlines' : 'No deadlines yet: add one to plan study';
+  const n = dayDiff(nx.due, new Date()), d = fmtDate(nx.due, { weekday:'short', month:'short', day:'numeric' });
+  const when = n === 0 ? 'today' : n === 1 ? 'tomorrow' : `in ${n} days`;
+  return `${dlName(nx.dl)} due ${d} · ${when}`;
+}
+
+// Completed minutes per course across every week (for the "overall" line)
+function doneAllTime() {
+  const out = {};
+  Object.values(state.weeks).forEach(w => (w.sessions || []).forEach(p => { if (p.done) out[p.courseId] = (out[p.courseId] || 0) + p.len; }));
+  return out;
+}
+
+// Progress bar: done (solid) + still planned (light), as a share of this week's target
+function progressBar(done, planned, target, color, label) {
+  const pct = v => target ? clamp(v / target * 100, 0, 100) : 0;
+  const d = pct(done), p = Math.min(100 - d, pct(Math.max(0, planned - done)));
+  return `<span class="bar" style="--c:${esc(color)}" role="img" aria-label="${esc(label)}"><i class="bar-done" style="width:${d}%"></i><i class="bar-plan" style="width:${p}%"></i></span>`;
+}
+
+// Big countdown to the next deadline on each course card
+function countdownHtml(c) {
+  const nx = upcoming(c, 1)[0];
+  const n = nx ? dayDiff(nx.due, new Date()) : -1;
+  const [big, small] = n < 0 ? ['–', 'none'] : n === 0 ? ['!', 'today'] : [String(n), n === 1 ? 'day' : 'days'];
+  const urgent = n >= 0 && n <= 3 ? ' urgent' : '';
+  return `<span class="count${urgent}" style="--c:${esc(c.color)}" aria-hidden="true"><b>${big}</b><small>${small}</small></span>`;
+}
+
+function weekOverview() {
+  if (!plan || !state.courses.length) return '';
+  const planned = plan.studyTotal;
+  const done = plan.courses.reduce((a, x) => a + x.doneWeek, 0);
+  const target = plan.courses.reduce((a, x) => a + x.need, 0);
+  // soonest thing due across all courses
+  const next = state.courses.map(c => ({ c, nx: upcoming(c, 1)[0] })).filter(v => v.nx && v.nx.due > startOfDay(new Date()))
+    .sort((a, b) => a.nx.due - b.nx.due)[0];
+  const nDays = next ? dayDiff(next.nx.due, new Date()) : 0;
+  const isThis = state.ui.weekOffset === 0;
+  return `<div class="week-card">
+    <div class="wc-row"><b>${isThis ? 'This week' : 'Week of ' + fmtDate(plan.ws)}</b><span>${fmtDur(done)} studied of ${fmtDur(planned)} planned</span></div>
+    ${progressBar(done, planned, Math.max(target, planned), 'var(--accent)', `Studied ${fmtDur(done)} of ${fmtDur(planned)} planned`)}
+    <div class="wc-sub">${next ? `Next due: <b>${esc(next.c.name)}</b> · ${esc(dlName(next.nx.dl))} in ${nDays} day${nDays > 1 ? 's' : ''}` : 'Nothing due soon'}${plan.shortfalls.length ? ` · <span class="short">${plan.shortfalls.length} course${plan.shortfalls.length > 1 ? 's' : ''} short</span>` : ''}</div>
+  </div>`;
+}
+
+function coursesPanel() {
+  const head = `<div class="panel-head"><h2>Courses</h2><span class="row" style="gap:6px"><button class="btn sm" data-act="quick-add" title="Type or paste your class schedule">⚡ Quick add</button><button class="btn sm primary" data-act="add-course">+ Add</button></span></div>`;
+  if (!state.courses.length) return head + `<div class="empty"><strong>No courses yet</strong>Add each class with its exams, projects, papers or quizzes so the planner knows what to prioritize.<div class="empty-act row" style="justify-content:center;gap:6px"><button class="btn sm" data-act="quick-add">Paste your class schedule</button><button class="btn sm" data-act="load-sample">Load sample data</button></div></div>`;
+  const det = state.ui.detailed, allDone = doneAllTime();
+  const ranked = plan.courses.filter(x => x.need > 0).sort((a, b) => b.prio - a.prio).map(x => x.c.id);
+  // soonest deadline first; courses with nothing upcoming go last
+  const nextDue = c => { const nx = upcoming(c, 1)[0]; return nx ? +nx.due : Infinity; };
+  const sorted = [...state.courses].sort((a, b) => nextDue(a) - nextDue(b));
+  return weekOverview() + head + '<ul class="list">' + sorted.map(c => {
+    const x = courseStats(c.id) || { need: 0, placed: 0, doneWeek: 0 };
+    const short = x.need - x.placed >= 15;
+    const passed = !upcoming(c, 1).length;
+    const studied = `Studied ${fmtDur(x.doneWeek)} of ${fmtDur(x.placed)} planned`;
+    let lines = '';
+    if (passed) lines = `<span class="item-sub">${(c.deadlines || []).length ? 'All deadlines passed' : 'Add a deadline to plan study'} · ${fmtDur(allDone[c.id] || 0)} studied in total</span>`;
+    else if (x.need || x.placed) {
+      lines = progressBar(x.doneWeek, x.placed, Math.max(x.need, x.placed), c.color, `${c.name}: ${studied}, weekly target ${fmtDur(x.need)}`)
+        + `<span class="item-sub${short ? ' short' : ''}">${studied}${short ? ` · ${fmtDur(x.need - x.placed)} short` : ''}</span>`;
+    } else lines = `<span class="item-sub">Nothing to plan this week</span>`;
+    if (det) {
+      const rank = ranked.indexOf(c.id) + 1;
+      const next3 = upcoming(c, 4).map(i => `${DL_TYPES[i.dl.type].short} ${fmtDate(i.due)}`).join(', ');
+      lines += `${next3 ? `<span class="item-sub">Coming up: ${esc(next3)}</span>` : ''}
+        <span class="item-sub">${fmtDur(allDone[c.id] || 0)} studied in total · weekly target ${fmtDur(x.need)}${rank ? ` · priority #${rank}` : ''}</span>
+        <span class="item-sub meters-inline">Difficulty${pips(c.difficulty)} Confidence${pips(c.confidence)}</span>`;
+    }
+    return `<li><button class="item course-card" data-act="edit-course" data-id="${c.id}" aria-label="Edit ${esc(c.name)}. ${esc(examText(c))}. ${esc(studied)}">
+      ${countdownHtml(c)}
+      <span class="item-main"><span class="item-title">${esc(c.name)}</span><span class="item-sub">${esc(examText(c))}</span>${lines}</span>
+    </button></li>`;
+  }).join('') + '</ul>';
+}
+
+function commitTimeText(c) {
+  if (c.flex === 'movable') return `${fmtDur(c.duration)} between ${fmtRange(toMin(c.earliest), toMin(c.latest))}`;
+  return fmtRange(toMin(c.start), toMin(c.end));
+}
+const daysText = days => {
+  const s = [...days].sort().join(',');
+  if (s === '0,1,2,3,4') return 'Weekdays';
+  if (s === '5,6') return 'Weekends';
+  if (days.length === 7) return 'Every day';
+  return [...days].sort().map(d => DAYS[d]).join(' ');
+};
+
+function commitmentsPanel() {
+  const head = `<div class="panel-head"><h2>Commitments</h2><span class="row" style="gap:6px"><button class="btn sm" data-act="quick-add" title="Type or paste your class schedule">⚡ Quick add</button><button class="btn sm primary" data-act="add-commit">+ Add</button></span></div>`;
+  if (!state.commitments.length) return head + `<div class="empty"><strong>No commitments yet</strong>Add classes, practices, work shifts — anything that takes time each week.<div class="empty-act"><button class="btn sm" data-act="quick-add">Paste your class schedule</button></div></div>`;
+  const order = { locked:0, movable:1, skippable:2, optional:3 };
+  const sorted = [...state.commitments].sort((a, b) => order[a.flex] - order[b.flex] || a.name.localeCompare(b.name));
+  return head + '<ul class="list">' + sorted.map(c => `
+    <li><button class="item" data-act="edit-commit" data-id="${c.id}" aria-label="Edit ${esc(c.name)}">
+      <span class="item-main"><span class="item-title">${esc(c.name)}</span><span class="item-sub">${esc(daysText(c.days))} · ${esc(commitTimeText(c))}</span>${c.location ? `<span class="item-sub">📍 ${esc(c.location)}</span>` : ''}</span>
+      <span class="badge ${c.flex}">${ICON[c.flex]}${FLEX[c.flex].label}</span>
+    </button></li>`).join('') + '</ul>';
+}
+
+function settingsPanel() {
+  const s = state.settings;
+  const prefs = Object.keys(PREF_WINDOWS).map(k => `
+    <input type="checkbox" id="pref-${k}" name="preferred" value="${k}" ${s.preferred.includes(k) ? 'checked' : ''}><label for="pref-${k}">${k[0].toUpperCase() + k.slice(1)}</label>`).join('');
+  return `<div class="panel-head"><h2>Settings</h2></div>
+  <form class="form" id="settingsForm" novalidate>
+    <div class="row">
+      <label class="field"><span>Wake up</span><input type="time" name="wake" value="${s.wake}" step="900"></label>
+      <label class="field"><span>Sleep</span><input type="time" name="sleep" value="${s.sleep}" step="900"></label>
+    </div>
+    <div class="row">
+      <label class="field"><span>Study session (min)</span><input type="number" name="sessionLen" min="15" max="180" step="5" value="${s.sessionLen}"></label>
+      <label class="field"><span>Break (min)</span><input type="number" name="breakLen" min="0" max="60" step="5" value="${s.breakLen}"></label>
+    </div>
+    <label class="field"><span>Max study hours per day</span><input type="number" name="maxStudyHours" min="0.5" max="14" step="0.5" value="${s.maxStudyHours}"></label>
+    <fieldset><legend>Preferred study times</legend><div class="seg">${prefs}</div>
+      <div class="hint">Morning 6–12 · Afternoon 12–5 · Evening 5–9 · Night 9–12. Preferred times are filled first.</div></fieldset>
+    <div class="error" id="settingsErr" role="alert"></div>
+    <div class="hint">Changes save automatically.</div>
+  </form>`;
+}
+
+function bindSettings() {
+  const f = $('#settingsForm');
+  f.addEventListener('change', () => {
+    const fd = new FormData(f);
+    const next = {
+      wake: fd.get('wake') || state.settings.wake,
+      sleep: fd.get('sleep') || state.settings.sleep,
+      sessionLen: clamp(Math.round(+fd.get('sessionLen') || 50), 15, 180),
+      breakLen: clamp(Math.round(+fd.get('breakLen') || 0), 0, 60),
+      maxStudyHours: clamp(+fd.get('maxStudyHours') || 4, 0.5, 14),
+      preferred: fd.getAll('preferred'),
+    };
+    const sl = toMin(next.sleep) === 0 ? 1440 : toMin(next.sleep);
+    if (sl - toMin(next.wake) < 240) { $('#settingsErr').textContent = 'Sleep time must be at least 4 hours after wake time (same day; use 00:00 for midnight).'; return; }
+    $('#settingsErr').textContent = '';
+    state.settings = next;
+    // re-plan without re-drawing this form (keeps keyboard focus in the field you're editing)
+    save(); refreshPlan(); renderBanner(); renderSummary(); renderCalendar(); toast('Settings saved');
+  });
+}
+
+// Conflict banner: what's short and why, skip suggestions, and skips you've already accepted
+function renderBanner() {
+  const el = $('#banner');
+  const wd = weekData(plan.ws);
+  const skippedNow = plan.skipped;                  // occurrences skipped this week (still existing commitments)
+  const rejectedCount = (wd.rejected || []).length;
+  if (!plan.shortfalls.length && !skippedNow.length) { el.hidden = true; el.innerHTML = ''; return; }
+
+  let html = '';
+  if (plan.shortfalls.length) {
+    html += `<div class="banner-head"><span class="banner-icon" aria-hidden="true">!</span>
+      <h2>Not enough study time this week</h2></div><ul class="short-list">`;
+    plan.shortfalls.forEach(f => {
+      const due = f.target.due, nm = esc(dlName(f.target.dl));
+      const forTxt = f.examDays <= 7 ? `<b>${nm}</b>, due ${fmtDate(due, { weekday:'short' })} ${fmtDate(due)}` : `this week's share of <b>${nm}</b>, due ${fmtDate(due)}`;
+      html += `<li><span class="dot" style="background:${esc(f.course.color)}"></span><span>
+        <b>${esc(f.course.name)}</b> needs ${fmtDur(f.need)} for ${forTxt}; only ${fmtDur(f.placed)} fits.
+        <b class="short-amt">${fmtDur(f.short)} short.</b> <span class="muted">${esc(shortReason(plan, f))}</span></span></li>`;
+    });
+    html += '</ul>';
+
+    if (suggestions.length) {
+      html += '<h3 class="banner-sub">Suggestions</h3><ul class="sugg-list">';
+      suggestions.forEach(sg => {
+        const e = sg.ev, k = esc(e.key);
+        html += `<li class="sugg"><div class="sugg-text">
+            <span>Skipping <b>${DAY_FULL[e.day]}'s ${esc(e.ref.name)}</b> frees ${fmtDur(sg.courseGain)} for <b>${esc(sg.course.name)}</b> (${esc(dlName(sg.target.dl))})${sg.gain > sg.courseGain ? ` (${fmtDur(sg.gain)} total)` : ''}</span>
+            <small>${ICON.skippable} ${DAYS[e.day]} ${fmtRange(e.start, e.end)} · Skippable</small></div>
+          <div class="sugg-btns">
+            <button class="btn sm primary" data-act="skip-accept" data-key="${k}" aria-label="Skip ${esc(e.ref.name)} on ${DAY_FULL[e.day]}">Skip it</button>
+            <button class="btn sm" data-act="skip-reject" data-key="${k}" aria-label="Keep ${esc(e.ref.name)} on ${DAY_FULL[e.day]}">Keep</button>
+          </div></li>`;
+      });
+      html += '</ul>';
+    } else {
+      html += `<p class="banner-note">No skippable commitment this week would free usable time. You could raise your daily max, shorten study sessions, add more preferred times, or mark something else as Skippable.</p>`;
+    }
+    if (rejectedCount) html += `<p class="banner-note">${rejectedCount} suggestion${rejectedCount > 1 ? 's' : ''} you chose to keep. <button class="linkbtn" data-act="skip-unreject">Show again</button></p>`;
+  }
+
+  if (skippedNow.length) {
+    html += `<div class="skipped-row"><span class="muted">Skipped this week:</span>` + skippedNow.map(e =>
+      `<span class="skip-chip">${esc(e.ref.name)} · ${DAYS[e.day]}<button class="linkbtn" data-act="skip-restore" data-key="${esc(e.key)}" aria-label="Restore ${esc(e.ref.name)} on ${DAY_FULL[e.day]}">Restore</button></span>`).join('') + '</div>';
+  }
+  el.className = 'banner' + (plan.shortfalls.length ? ' warn' : ' info');
+  el.innerHTML = html;
+  el.hidden = false;
+}
+
+// One-line status of this week's plan
+function renderSummary() {
+  const el = $('#summary');
+  if (!state.courses.length) {
+    // commitments but no courses yet: say what's missing instead of showing nothing
+    el.innerHTML = state.commitments.length ? `<span>Add a course with its exams or other deadlines and study time will be planned around these commitments.</span> <button class="linkbtn" data-act="add-course">Add a course</button>` : '';
+    return;
+  }
+  const parts = [`<span><b>${fmtDur(plan.studyTotal)}</b> of study planned this week</span>`];
+  if (plan.shortfalls.length) {
+    parts.push(...plan.shortfalls.map(f =>
+      `<span class="chip warn" title="${esc(dlName(f.target.dl))}: needs ${fmtDur(f.need)} this week, only ${fmtDur(f.placed)} fits">${esc(f.course.name)} · ${esc(DL_TYPES[f.target.dl.type].short)}: ${fmtDur(f.short)} short</span>`));
+  } else if (plan.studyTotal) parts.push('<span class="chip ok">All courses covered</span>');
+  if (plan.movableConflicts.length) parts.push(`<span class="chip warn">${plan.movableConflicts.length} movable item${plan.movableConflicts.length > 1 ? 's' : ''} couldn't fit</span>`);
+  if (plan.droppedOptional.length) parts.push(`<span class="chip muted" title="${esc(plan.droppedOptional.map(e => e.ref.name + ' (' + DAYS[e.day] + ')').join(', '))}">${plan.droppedOptional.length} optional hidden (no free time)</span>`);
+  el.innerHTML = parts.join('');
+}
+
+function renderLegend() {
+  $('#legend').innerHTML = Object.entries(FLEX).map(([k, v]) => `<span class="badge ${k}" title="${esc(v.desc)}">${ICON[k]}${v.label}</span>`).join('');
+}
+
+/* =========================================================
+   Scheduler
+   Order: Locked + Skippable (fixed times) → Movable (best slot in window)
+          → study sessions (weighted fill) → Optional (only if still free).
+   Deterministic: same inputs always give the same week.
+   ========================================================= */
+const STEP = 15;                                   // candidate start times every 15 min
+const weekKey = ws => ymd(ws);
+const weekData = ws => state.weeks[weekKey(ws)] || {};
+const instKey = (c, d) => c.id + '@' + d;          // one occurrence of a commitment on one weekday
+
+// Total study a course needs before its exam (minutes).
+// Harder + less confident = more hours. Range: 1.5h (diff 1, conf 5) to 13.5h (diff 5, conf 1).
+const courseNeedMin = c => Math.round((1 + 0.5 * c.difficulty * (6 - c.confidence)) * 60);
+
+// How urgently a deadline should get the next free slot: the course's weight, multiplied up as the due date nears.
+const targetPriority = (c, daysToDue) => c.difficulty * (6 - c.confidence) * (1 + 7 / Math.max(1, daysToDue));
+
+/* ---------- deadlines ---------- */
+const dayDiff = (a, b) => Math.round((startOfDay(a) - startOfDay(b)) / 864e5);
+const dlName = dl => dl.title && dl.title.toLowerCase() !== DL_TYPES[dl.type].label.toLowerCase()
+  ? `${dl.title} (${DL_TYPES[dl.type].label.toLowerCase()})` : DL_TYPES[dl.type].label;
+
+// Every due date of a course's deadlines between two dates (inclusive). Weekly ones repeat every 7 days
+// from their first date (until their end date, if set). `to` may be null for "any time after `from`".
+function dlInstances(c, from, to) {
+  const out = [];
+  (c.deadlines || []).forEach(dl => {
+    if (!dl.date) return;
+    const d0 = parseYmd(dl.date);
+    if (!dl.repeat) { if (d0 >= from && (!to || d0 <= to)) out.push({ dl, due: d0, key: dl.id + '@' + dl.date }); return; }
+    const end = dl.until ? parseYmd(dl.until) : null;
+    let stop = to || addDays(from, 70);
+    if (end && end < stop) stop = end;
+    const k = Math.max(0, Math.ceil(dayDiff(from, d0) / 7));
+    for (let d = addDays(d0, 7 * k); d <= stop; d = addDays(d, 7)) out.push({ dl, due: d, key: dl.id + '@' + ymd(d) });
+  });
+  return out.sort((a, b) => a.due - b.due);
+}
+// the next few things due for a course, from today on
+const upcoming = (c, n = 3) => dlInstances(c, startOfDay(new Date()), null).slice(0, n);
+
+// Prep time a deadline needs (minutes): your own estimate if you gave one; exams use the difficulty/confidence
+// formula; other types start from a typical amount, scaled the same way (1× at difficulty 3 / confidence 3).
+function prepMin(c, dl) {
+  if (+dl.hours > 0) return Math.round(dl.hours * 60);
+  if (dl.type === 'exam') return courseNeedMin(c);
+  const factor = 0.6 + 0.045 * c.difficulty * (6 - c.confidence);
+  return Math.max(15, Math.round(DL_TYPES[dl.type].hours * 60 * factor / 5) * 5);
+}
+
+function prefWindowOf(mid) {
+  return Object.keys(PREF_WINDOWS).find(k => mid >= PREF_WINDOWS[k][0] && mid < PREF_WINDOWS[k][1]);
+}
+
+// Minutes of completed study per deadline on days before today (all weeks)
+function doneBeforeToday() {
+  const today = startOfDay(new Date()), out = {};
+  Object.entries(state.weeks).forEach(([wk, w]) => (w.sessions || []).forEach(p => {
+    if (p.done && p.tk && addDays(parseYmd(wk), p.day) < today) out[p.tk] = (out[p.tk] || 0) + p.len;
+  }));
+  return out;
+}
+
+// opts.extraSkip: extra Skippable occurrences to treat as skipped (used to test "what if I skipped this?")
+function buildPlan(ws, opts = {}) {
+  const s = state.settings, wake = wakeMin(), sleep = sleepMin();
+  const today = startOfDay(new Date());
+  const wd = weekData(ws);
+  const skipped = new Set([...(wd.skipped || []), ...(opts.extraSkip || [])]), moved = wd.moved || {};
+  const useful = s.sessionLen + s.breakLen;   // a free gap shorter than this can't hold a full session
+  const plan = { ws, days: [], courses: [], shortfalls: [], skipped: [], droppedOptional: [], movableConflicts: [], studyTotal: 0 };
+  const days = plan.days = DAYS.map((_, i) => ({ i, date: addDays(ws, i), busy: [], events: [], studyMin: 0 }));
+
+  // --- helpers on a day's busy list ---
+  const occupy = (day, start, end, ev) => { day.busy.push([start, end]); if (ev) day.events.push(ev); };
+  const isFree = (day, start, end) => start >= wake && end <= sleep && day.busy.every(([a, b]) => end <= a || start >= b);
+  // minutes left stranded in too-small fragments if [start,end] is taken out of its free gap
+  const waste = (day, start, end) => {
+    let gs = wake, ge = sleep;
+    day.busy.forEach(([a, b]) => { if (b <= start && b > gs) gs = b; if (a >= end && a < ge) ge = a; });
+    const L = start - gs, R = ge - end;
+    return (L > 0 && L < useful ? L : 0) + (R > 0 && R < useful ? R : 0);
+  };
+  const starts = (from, to, len) => {            // candidate start times in [from, to-len]
+    const out = [];
+    for (let t = from; t + len <= to; t += STEP) out.push(t);
+    if (to - len >= from && !out.includes(to - len)) out.push(to - len);
+    return out;
+  };
+
+  // 1. Fixed-time items: Locked always, Skippable unless you accepted a skip this week
+  state.commitments.forEach(c => {
+    if (c.flex !== 'locked' && c.flex !== 'skippable') return;
+    c.days.forEach(d => {
+      const start = toMin(c.start), end = toMin(c.end) || 1440, key = instKey(c, d);
+      const ev = { kind:'commit', ref:c, flex:c.flex, start, end, day:d, key };
+      if (c.flex === 'skippable' && skipped.has(key)) { plan.skipped.push(ev); return; }
+      occupy(days[d], start, end, ev);
+    });
+  });
+
+  // 2. Movable items, tightest window first (least slack = fewest options, so it chooses first)
+  const movs = [];
+  state.commitments.filter(c => c.flex === 'movable').forEach(c => c.days.forEach(d =>
+    movs.push({ c, d, key: instKey(c, d), e: toMin(c.earliest), l: toMin(c.latest) || 1440 })));
+  movs.sort((a, b) => ((a.l - a.e) - a.c.duration) - ((b.l - b.e) - b.c.duration));
+  movs.forEach(m => {
+    const day = days[m.d], dur = m.c.duration;
+    let best = null, bestScore = -Infinity, why;
+    const pinned = moved[m.key];
+    if (pinned != null && isFree(day, pinned, pinned + dur)) { best = pinned; why = 'Placed where you moved it'; }
+    else {
+      // pick the slot that strands the fewest minutes of free time; earlier wins ties
+      starts(m.e, m.l, dur).forEach(t => {
+        if (!isFree(day, t, t + dur)) return;
+        const sc = -waste(day, t, t + dur) - t / 10000;
+        if (sc > bestScore) { bestScore = sc; best = t; }
+      });
+      why = `Best fit inside its ${fmtRange(m.e, m.l)} window: keeps the rest of your free time in usable blocks`;
+    }
+    const conflict = best == null;
+    if (conflict) { best = m.e; why = `No free ${fmtDur(dur)} inside ${fmtRange(m.e, m.l)}. It overlaps something.`; }
+    if (pinned != null && best !== pinned && !conflict) why += '. (The spot you moved it to is now taken, so it was placed automatically.)';
+    const ev = { kind:'commit', ref:m.c, flex:'movable', start:best, end:best + dur, day:m.d, key:m.key, why, conflict, moved: pinned != null && best === pinned };
+    if (conflict) plan.movableConflicts.push(ev);
+    occupy(day, best, best + dur, ev);
+  });
+
+  // 3. Study sessions, planned per deadline ("target"): each exam, project, quiz… gets its own prep time.
+  // A target's prep is spread evenly over its prep window: from today (or `lead` days before it's due,
+  // or the previous week's due date for weekly ones) up to the day before it's due.
+  const donePast = doneBeforeToday();
+  const weekEnd = addDays(ws, 6), horizon = addDays(ws, 7 + MAX_LEAD);
+  plan.targets = [];
+  state.courses.forEach(c => dlInstances(c, addDays(today, 1), null).forEach(inst => {
+    if (inst.dl.repeat && inst.due > horizon) return;
+    const lead = DL_TYPES[inst.dl.type].lead;
+    let open = today;                                              // when prep for this one can start
+    if (lead != null && addDays(inst.due, -lead) > open) open = addDays(inst.due, -lead);
+    if (inst.dl.repeat && addDays(inst.due, -7) > open) open = addDays(inst.due, -7);
+    if (open > weekEnd) return;                                    // prep hasn't started by the end of this week
+    const allowed = days.filter(d => d.date >= open && d.date < inst.due).map(d => d.i);
+    if (!allowed.length && inst.due <= ws) return;                 // already due before this week
+    const daysLeft = Math.max(1, dayDiff(inst.due, open));
+    const needTotal = Math.max(0, prepMin(c, inst.dl) - (donePast[inst.key] || 0));
+    const need = Math.round(needTotal * allowed.length / daysLeft / 5) * 5;
+    const daysToDue = dayDiff(inst.due, today);
+    plan.targets.push({ key: inst.key, c, dl: inst.dl, due: inst.due, daysToDue, daysLeft, allowed, needTotal, need,
+      placed: 0, doneWeek: 0, prio: targetPriority(c, daysToDue), stuck: false, sessions: [] });
+  }));
+  const byKey = Object.fromEntries(plan.targets.map(t => [t.key, t]));
+  const courseDone = {};
+
+  // 3a. Pinned sessions (ones you dragged or checked off) stay exactly where they are
+  (wd.sessions || []).forEach(p => {
+    const c = state.courses.find(x => x.id === p.courseId);
+    if (!c) return;                                   // course was deleted
+    const day = days[p.day];
+    // the deadline it belongs to; older sessions without one go to the soonest deadline that day can prep for
+    let t = p.tk && byKey[p.tk];
+    if (!t) t = plan.targets.filter(x => x.c.id === c.id && x.allowed.includes(p.day)).sort((a, b) => a.due - b.due)[0] || null;
+    const counts = !!t && t.allowed.includes(p.day);  // only sessions in a deadline's prep window count toward it
+    const ev = {
+      kind:'study', course:c, target:t, start:p.start, end:p.start + p.len, day:p.day, key:'pin:' + p.id,
+      pinned:true, done:!!p.done, missed: !p.done && day.date < today, why: { pref:null, counts },
+    };
+    occupy(day, p.start, Math.min(sleep, p.start + p.len + s.breakLen), ev);
+    if (p.done) { courseDone[c.id] = (courseDone[c.id] || 0) + p.len; if (t) t.doneWeek += p.len; }
+    if (counts) { day.studyMin += p.len; t.placed += p.len; plan.studyTotal += p.len; t.sessions.push(ev); }
+  });
+
+  const maxDay = s.maxStudyHours * 60;
+  const bestStudySlot = (x, len) => {
+    let best = null;
+    x.allowed.forEach((di, order) => {
+      const day = days[di];
+      if (day.studyMin + len > maxDay) return;
+      // sessions of the same course already that day (any of its deadlines)
+      const sameCourse = day.events.filter(v => v.kind === 'study' && v.course.id === x.c.id).length;
+      starts(wake, sleep, len).forEach(t => {
+        // the session plus its break after must be free (break may be cut off by bedtime)
+        if (!isFree(day, t, Math.min(sleep, t + len + s.breakLen))) return;
+        const win = prefWindowOf(t + len / 2);
+        const pref = win && s.preferred.includes(win);
+        const score = (pref ? 3 : 0)          // your preferred study times first
+          - sameCourse * 2.5                  // spread a course across days
+          - day.studyMin / 60 * 0.6           // balance daily load
+          - order * 0.2                       // slight preference for earlier days
+          - waste(day, t, t + len + s.breakLen) / 60
+          + (t % 30 === 0 ? 0.2 : 0);         // tidy start times
+        if (!best || score > best.score) best = { score, di, t, pref, win, sameCourse, dayLoad: day.studyMin };
+      });
+    });
+    return best;
+  };
+
+  for (let guard = 0; guard < 400; guard++) {
+    const open = plan.targets.filter(x => !x.stuck && x.need - x.placed >= 15);
+    if (!open.length) break;
+    // deadline with the highest priority × share of its weekly target still missing goes next
+    open.sort((a, b) => b.prio * (b.need - b.placed) / b.need - a.prio * (a.need - a.placed) / a.need);
+    const x = open[0], rem = x.need - x.placed;
+    let len = rem >= s.sessionLen ? s.sessionLen : Math.max(20, Math.ceil(rem / 5) * 5);
+    if (rem > len && rem - len < 15) len = rem;   // fold a tiny leftover into this session instead of dropping it
+    let slot = bestStudySlot(x, len);
+    // no room for a full session? try a short one in a smaller gap / the last bit of the daily cap
+    for (const short of [30, 20]) { if (slot || len <= short) continue; len = short; slot = bestStudySlot(x, len); }
+    if (!slot) { x.stuck = true; continue; }
+    const day = days[slot.di];
+    const ev = {
+      kind:'study', course:x.c, target:x, start:slot.t, end:slot.t + len, day:slot.di,
+      key: `study:${x.key}:${slot.di}:${slot.t}`,
+      why: { pref: slot.pref ? slot.win : null, win: slot.win, firstToday: slot.sameCourse === 0, dayLoad: slot.dayLoad, counts: true },
+    };
+    occupy(day, slot.t, Math.min(sleep, slot.t + len + s.breakLen), ev);
+    day.studyMin += len; x.placed += len; x.sessions.push(ev); plan.studyTotal += len;
+  }
+
+  // 4. Optional items: only if their whole time is still free
+  state.commitments.filter(c => c.flex === 'optional').forEach(c => c.days.forEach(d => {
+    const start = toMin(c.start), end = toMin(c.end) || 1440, key = instKey(c, d);
+    const ev = { kind:'commit', ref:c, flex:'optional', start, end, day:d, key };
+    if (isFree(days[d], start, end)) occupy(days[d], start, end, ev); else plan.droppedOptional.push(ev);
+  }));
+
+  // 5. Shortfalls: deadlines whose share of prep this week didn't fit
+  plan.shortfalls = plan.targets
+    .filter(x => x.need - x.placed >= 15)
+    .map(x => ({ course: x.c, target: x, need: x.need, placed: x.placed, short: x.need - x.placed, examDays: x.daysToDue }))
+    .sort((a, b) => a.examDays - b.examDays);
+
+  // 6. Per-course totals for the sidebar and tooltips (sum of that course's deadlines this week)
+  plan.courses = state.courses.map(c => {
+    const ts = plan.targets.filter(t => t.c.id === c.id);
+    const next = upcoming(c, 1)[0];
+    return { c, targets: ts,
+      need: ts.reduce((a, t) => a + t.need, 0), placed: ts.reduce((a, t) => a + t.placed, 0),
+      doneWeek: courseDone[c.id] || 0, prio: ts.reduce((a, t) => Math.max(a, t.need ? t.prio : 0), 0),
+      daysLeft: next ? dayDiff(next.due, today) : -1 };
+  });
+  return plan;
+}
+
+/* =========================================================
+   Conflicts: explain shortfalls and suggest Skippable items to drop
+   ========================================================= */
+const DAY_FULL = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const totalShort = p => p.shortfalls.reduce((a, f) => a + f.short, 0);
+
+// this week's editable overrides (created on first use)
+function weekMut() {
+  const k = weekKey(weekStart());
+  const w = state.weeks[k] || (state.weeks[k] = {});
+  w.skipped = w.skipped || []; w.rejected = w.rejected || []; w.moved = w.moved || {}; w.sessions = w.sessions || [];
+  return w;
+}
+
+// Why a course came up short, in plain words
+function shortReason(p, f) {
+  const x = f.target;
+  const max = state.settings.maxStudyHours * 60;
+  const roomy = x.allowed.filter(di => p.days[di].studyMin + 20 <= max);
+  const daysTxt = x.allowed.length === 1 ? 'only 1 study day is left, and it is' : `only ${x.allowed.length} study days are left, and they are`;
+  if (!roomy.length) return `Every study day before it's due is already at your ${state.settings.maxStudyHours}h daily max.`;
+  if (x.allowed.length <= 3) return `It's due soon, so ${daysTxt} full.`;
+  return 'The free gaps left are too small for another session.';
+}
+
+// Try skipping each Skippable occurrence on its own; keep the ones that recover real study time.
+function skipSuggestions(p) {
+  if (!p.shortfalls.length) return [];
+  const wd = weekData(p.ws), rejected = new Set(wd.rejected || []);
+  const before = totalShort(p), out = [];
+  p.days.forEach(day => day.events.forEach(ev => {
+    if (ev.kind !== 'commit' || ev.flex !== 'skippable' || rejected.has(ev.key)) return;
+    const alt = buildPlan(p.ws, { extraSkip: [ev.key] });
+    const gain = before - totalShort(alt);
+    if (gain < 15) return;                         // not worth suggesting
+    // which short course benefits most from this skip?
+    let best = null;
+    p.shortfalls.forEach(f => {
+      const at = alt.targets.find(x => x.key === f.target.key), now = at ? at.placed : f.placed;
+      const g = now - f.placed;
+      if (g > 0 && (!best || g > best.g)) best = { g, course: f.course, target: f.target };
+    });
+    const pick = best || { g: gain, course: p.shortfalls[0].course, target: p.shortfalls[0].target };
+    out.push({ ev, gain, course: pick.course, target: pick.target, courseGain: pick.g });
+  }));
+  return out.sort((a, b) => b.gain - a.gain || a.ev.day - b.ev.day);
+}
+
+let plan = null, suggestions = [];
+const refreshPlan = () => { plan = buildPlan(weekStart()); suggestions = skipSuggestions(plan); };
+const courseStats = id => plan && plan.courses.find(x => x.c.id === id);
+
+// assign side-by-side lanes for overlapping events within a day
+function layoutLanes(items) {
+  items.sort((a, b) => a.start - b.start || b.end - a.end);
+  let cluster = [], clusterEnd = -1;
+  const flush = () => {
+    const lanes = [];
+    cluster.forEach(it => {
+      let l = lanes.findIndex(e => e <= it.start);
+      if (l < 0) { l = lanes.length; lanes.push(0); }
+      lanes[l] = it.end; it.lane = l;
+    });
+    cluster.forEach(it => it.lanes = lanes.length);
+    cluster = [];
+  };
+  items.forEach(it => {
+    if (cluster.length && it.start >= clusterEnd) { flush(); clusterEnd = -1; }
+    cluster.push(it); clusterEnd = Math.max(clusterEnd, it.end);
+  });
+  if (cluster.length) flush();
+  return items;
+}
+
+function renderCalendar() {
+  const cal = $('#cal');
+  const wake = wakeMin(), sleep = sleepMin();
+  // show the waking day plus a little margin, snapped to hours
+  const gStart = Math.max(0, Math.floor((wake - 30) / 60) * 60);
+  const gEnd = Math.min(1440, Math.ceil((sleep + 30) / 60) * 60);
+  grid = { gStart, gEnd };      // remembered for dragging
+  const height = (gEnd - gStart) * PPM;
+  const ws = weekStart(), todayStr = ymd(new Date());
+  const hourPx = 60 * PPM;
+  const gridBg = `background-image:repeating-linear-gradient(to bottom,var(--line) 0 1px,transparent 1px ${hourPx}px);background-position:0 0`;
+
+  let html = '<div class="cal-grid"><div class="cal-head cal-corner"></div>';
+  DAYS.forEach((d, i) => {
+    const date = addDays(ws, i), isToday = ymd(date) === todayStr;
+    // deadline markers: a small pill in the header of each day something is due (exam, project, quiz…)
+    const exams = state.courses.flatMap(c => dlInstances(c, date, date).map(inst => ({ c, inst })));
+    const pills = exams.map(({ c, inst }) => `<span class="exam-pill" style="--c:${esc(c.color)}" title="${esc(c.name)}: ${esc(dlName(inst.dl))} due">${esc(DL_TYPES[inst.dl.type].short)} · ${esc(c.name)}</span>`).join('');
+    html += `<div class="cal-head${isToday ? ' today' : ''}${exams.length ? ' has-exam' : ''}" ${isToday ? 'aria-current="date"' : ''}>${d}<b>${date.getDate()}</b>${pills}</div>`;
+  });
+
+  html += `<div class="gutter" style="height:${height}px;position:sticky">`;
+  for (let m = gStart + 60; m < gEnd; m += 60) html += `<span class="hour" style="top:${(m - gStart) * PPM}px">${fmtTime(m)}</span>`;
+  html += '</div>';
+
+  if (!plan) refreshPlan();
+  const now = new Date(), nowMin = now.getHours() * 60 + now.getMinutes();
+  DAYS.forEach((d, i) => {
+    const date = addDays(ws, i), isToday = ymd(date) === todayStr;
+    html += `<div class="day${isToday ? ' today' : ''}" style="height:${height}px;${gridBg}" data-day="${i}" aria-label="${fmtDate(date, { weekday:'long', month:'long', day:'numeric' })}">`;
+    if (wake > gStart) html += `<div class="offhours" style="top:0;height:${(wake - gStart) * PPM}px"></div>`;
+    if (sleep < gEnd) html += `<div class="offhours" style="top:${(sleep - gStart) * PPM}px;bottom:0"></div>`;
+    // skipped items: faint full-width outline behind everything (click to restore)
+    plan.skipped.filter(e => e.day === i).forEach(e => html += ghostHtml(e, gStart, gEnd));
+    // detailed view: Optional items that didn't fit, as dotted outlines
+    if (state.ui.detailed) plan.droppedOptional.filter(e => e.day === i).forEach(e => html += droppedHtml(e, gStart, gEnd));
+    layoutLanes([...plan.days[i].events]).forEach(e => html += blockHtml(e, gStart, gEnd));
+    if (isToday && nowMin >= gStart && nowMin <= gEnd) html += `<div class="nowline" style="top:${(nowMin - gStart) * PPM}px" aria-hidden="true"></div>`;
+    html += '</div>';
+  });
+  html += '</div>';
+
+  if (!state.courses.length && !state.commitments.length) {
+    html += `<div class="cal-empty"><div class="card"><h3>Your week is a blank page</h3>
+      <p>Add your courses and weekly commitments, or load sample data to explore.</p>
+      <div class="row"><button class="btn primary" data-act="add-course">Add a course</button><button class="btn" data-act="load-sample">Load sample</button></div></div></div>`;
+  }
+  cal.innerHTML = html;
+  // remember which blocks exist so the next render only animates new ones
+  shownKeys = new Set(plan.days.flatMap(d => d.events.map(e => e.key)));
+}
+
+// blocks that weren't on screen last render get a gentle entrance
+let shownKeys = null;
+const enterCls = key => shownKeys && !shownKeys.has(key) ? ' enter' : '';
+
+function droppedHtml(e, gStart, gEnd) {
+  const s = clamp(e.start, gStart, gEnd), en = clamp(e.end, gStart, gEnd);
+  if (en <= s) return '';
+  const label = `${e.ref.name} (Optional) not scheduled on ${DAYS[e.day]}: no free time at ${fmtRange(e.start, e.end)}`;
+  return `<div class="blk ghost dropped" style="top:${(s - gStart) * PPM}px;height:${Math.max(18, (en - s) * PPM - 2)}px;left:2px;width:calc(100% - 4px)" title="${esc(label)}" aria-hidden="true">
+    <span class="t">${esc(e.ref.name)}</span><span class="s">No free time</span></div>`;
+}
+
+function blockHtml(e, gStart, gEnd) {
+  const s = clamp(e.start, gStart, gEnd), en = clamp(e.end, gStart, gEnd);
+  if (en <= s) return '';
+  const top = (s - gStart) * PPM, h = Math.max(18, (en - s) * PPM - 2);
+  const w = 100 / e.lanes;
+  const style = `top:${top}px;height:${h}px;left:calc(${e.lane * w}% + 2px);width:calc(${w}% - 4px)`;
+  if (e.kind === 'study') return studyBlockHtml(e, style, h);
+  const c = e.ref;
+  const sub = (c.flex === 'movable'
+    ? `${fmtRange(e.start, e.end)} · window ${fmtRange(toMin(c.earliest), toMin(c.latest))}`
+    : fmtRange(e.start, e.end)) + (c.location ? ` · ${c.location}` : '');
+  let label = `${c.name}, ${FLEX[c.flex].label}, ${DAYS[e.day]} ${sub}`;
+  if (e.why) label += `. ${e.why}`;
+  const mov = c.flex === 'movable';
+  // Movable blocks: draggable within their window, with a rich tooltip instead of the plain title
+  const extra = mov ? `data-key="${esc(e.key)}" data-drag="movable" data-tip aria-describedby="tip"` : `title="${esc(label)}"`;
+  const showSub = state.ui.detailed && h > 30;
+  return `<button class="blk ${c.flex}${e.conflict ? ' conflict' : ''}${mov && e.moved ? ' pinned' : ''}${enterCls(e.key)}" style="${style}" data-act="edit-commit" data-id="${c.id}" ${mov ? `data-key="${esc(e.key)}"` : ''} aria-label="${esc(label)}" ${extra}>
+    <span class="t">${ICON[c.flex]}${esc(c.name)}</span>${showSub ? `<span class="s">${esc(sub)}</span>` : ''}</button>`;
+}
+
+function ghostHtml(e, gStart, gEnd) {
+  const s = clamp(e.start, gStart, gEnd), en = clamp(e.end, gStart, gEnd);
+  if (en <= s) return '';
+  const label = `${e.ref.name} skipped this week (${DAYS[e.day]} ${fmtRange(e.start, e.end)}). Click to restore.`;
+  return `<button class="blk ghost" style="top:${(s - gStart) * PPM}px;height:${Math.max(18, (en - s) * PPM - 2)}px;left:2px;width:calc(100% - 4px)"
+    data-act="skip-restore" data-key="${esc(e.key)}" aria-label="${esc(label)}" title="${esc(label)}">
+    <span class="t">${esc(e.ref.name)}</span><span class="s">Skipped</span></button>`;
+}
+
+/* ---------- explain-why ---------- */
+const cap1 = s => s[0].toUpperCase() + s.slice(1);
+const CHECK = '<svg width="10" height="10" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+// Every reason behind a study block, in plain words (used by the tooltip and the session panel)
+function whyItems(e) {
+  const w = e.why || {}, c = e.course, t = e.target, items = [];
+  if (e.done) items.push('Completed. Counts toward your progress.');
+  else if (e.missed) items.push('This day has passed. Tick it if you did it.');
+  if (t) {
+    // which deadline this prepares for, how soon it's due, and how much prep it needs
+    const nm = dlName(t.dl), dueTxt = fmtDate(t.due, { weekday:'short', month:'short', day:'numeric' });
+    items.push(t.daysToDue <= 1 ? `Prep for ${nm}, due tomorrow (${dueTxt}), so it's top priority`
+      : `Prep for ${nm}, due in ${t.daysToDue} days (${dueTxt})${t.daysToDue <= 5 ? '. Close, so it gets extra weight' : ''}`);
+    items.push(+t.dl.hours > 0 ? `You estimated ${fmtDur(prepMin(c, t.dl))} of prep for it`
+      : `Difficulty ${c.difficulty}/5 and confidence ${c.confidence}/5 → about ${fmtDur(prepMin(c, t.dl))} of prep for this ${DL_TYPES[t.dl.type].label.toLowerCase()}`);
+    if (t.dl.repeat) items.push(`Repeats weekly, so prep starts after the previous one is due`);
+  } else items.push('Not linked to an upcoming deadline');
+  const ranked = plan.courses.filter(x => x.need > 0).sort((a, b) => b.prio - a.prio);
+  const rank = ranked.findIndex(x => x.c.id === c.id) + 1;
+  if (rank) items.push(`Priority #${rank} of ${ranked.length} course${ranked.length > 1 ? 's' : ''} this week`);
+  if (e.pinned) items.push('You placed this session, so the planner keeps it here');
+  else {
+    items.push(w.pref ? `${cap1(w.pref)}: one of your preferred study times`
+      : `${w.win ? cap1(w.win) + " isn't a preferred time, but this" : 'This'} was the best free gap left`);
+    if (w.firstToday) items.push(`First ${c.name} session that day: spreads study across the week`);
+  }
+  if (!w.counts && !e.done) items.push("Doesn't count toward this week's target (past day, or outside a deadline's prep window)");
+  return items;
+}
+function targetLine(c) {
+  const x = courseStats(c.id);
+  if (!x) return '';
+  return `This week: ${fmtDur(x.placed)} planned of ${fmtDur(x.need)} target · ${fmtDur(x.doneWeek)} done`;
+}
+
+function studyBlockHtml(e, style, h) {
+  const c = e.course, k = esc(e.key);
+  const cls = (e.done ? ' done' : '') + (e.missed ? ' missed' : '') + (e.pinned ? ' pinned' : '');
+  const label = `Study ${c.name}, ${DAY_FULL[e.day]} ${fmtRange(e.start, e.end)}${e.done ? ', done' : ''}. Opens course and session details.`;
+  // the wrapper is what you drag; inside: the main button (opens the course editor, same as the sidebar) and the ✓ button
+  // simple view: course name only; detailed: time, plus the top reason on taller blocks
+  const det = state.ui.detailed;
+  const reason = det && h > 46 && !e.done ? `<span class="s why">${esc(whyItems(e)[e.missed ? 1 : 0].split(/[.(]/)[0])}</span>` : '';
+  return `<div class="blk study${cls}${enterCls(e.key)}" style="${style};--c:${esc(c.color)}" data-key="${k}" ${e.done ? '' : 'data-drag="study"'} data-tip>
+    <button class="blk-main" data-act="edit-course" data-id="${esc(c.id)}" data-key="${k}" aria-label="${esc(label)}" aria-describedby="tip">
+      <span class="t">${e.pinned && !e.done ? '<span class="pin" aria-hidden="true">•</span>' : ''}${esc(c.name)}</span>${det && h > 30 ? `<span class="s">${e.done ? 'Done' : 'Study'} · ${fmtRange(e.start, e.end)}</span>` : ''}${reason}</button>
+    <button class="chk" data-act="toggle-done" data-key="${k}" aria-pressed="${e.done}" aria-label="${e.done ? 'Mark not done' : 'Mark done'}: ${esc(c.name)}, ${DAY_FULL[e.day]} ${fmtRange(e.start, e.end)}">${CHECK}</button>
+  </div>`;
+}
+
+/* ---------- session actions ---------- */
+const findEvent = key => plan && plan.days.flatMap(d => d.events).find(e => e.key === key);
+
+// Auto-placed sessions change whenever the plan is rebuilt, so the moment you touch one
+// (check it off or drag it) it becomes a pinned session saved for this week.
+function pinSession(ev, changes = {}) {
+  const w = weekMut();
+  let rec = ev.pinned ? w.sessions.find(p => 'pin:' + p.id === ev.key) : null;
+  // tk remembers which deadline the session prepares for, so it keeps counting toward it
+  if (!rec) { rec = { id: uid(), courseId: ev.course.id, tk: ev.target ? ev.target.key : null, day: ev.day, start: ev.start, len: ev.end - ev.start, done: false }; w.sessions.push(rec); }
+  Object.assign(rec, changes);
+  return rec;
+}
+function toggleDone(key) {
+  const ev = findEvent(key);
+  if (!ev) return;
+  const rec = pinSession(ev, { done: !ev.done });
+  commit(rec.done ? `${fmtDur(rec.len)} of ${ev.course.name} done` : 'Marked as not done');
+  refocus(`.chk[data-key="pin:${rec.id}"]`);
+}
+function unpinSession(key) {
+  const w = weekMut();
+  w.sessions = w.sessions.filter(p => 'pin:' + p.id !== key);
+  commit('Session handed back to the planner');
+}
+// put keyboard focus back on an element after a re-render
+function refocus(sel) { const el = $(sel, $('#cal')); if (el) el.focus({ preventScroll: true }); }
+
+/* =========================================================
+   Dialogs: course & commitment editors
+   ========================================================= */
+const dlg = $('#dlg'), dlgForm = $('#dlgForm');
+let onSubmit = null;
+
+function openDialog(html, submitFn, focusSel) {
+  dlgForm.innerHTML = html;
+  dlgForm.oninput = dlgForm.onchange = null;    // clear any per-dialog handlers from the last one
+  onSubmit = submitFn;
+  dlg.showModal();
+  const f = focusSel ? $(focusSel, dlgForm) : $('input,select', dlgForm);
+  if (f) f.focus();
+}
+function closeDialog() { dlg.close(); onSubmit = null; }
+dlg.addEventListener('close', () => dlg.classList.remove('wide', 'mid'));   // Quick add and the course editor are wider than the rest
+dlgForm.addEventListener('submit', e => {
+  e.preventDefault();
+  if (!onSubmit) return;
+  const err = onSubmit(new FormData(dlgForm));
+  if (err) { $('.error', dlgForm).textContent = err; return; }
+  closeDialog();
+});
+dlgForm.addEventListener('click', e => {
+  if (e.target.closest('[data-dlg="cancel"]')) closeDialog();
+});
+dlg.addEventListener('click', e => { if (e.target === dlg) closeDialog(); }); // click backdrop
+
+const scale = (name, val, low, high) => `<div class="seg">${[1,2,3,4,5].map(i =>
+  `<input type="radio" id="${name}${i}" name="${name}" value="${i}" ${+val === i ? 'checked' : ''}><label for="${name}${i}">${i}</label>`).join('')}</div>
+  <div class="hint">1 = ${low} · 5 = ${high}</div>`;
+
+// One editable deadline row in the course editor
+function dlRowHtml(dl) {
+  const opts = Object.entries(DL_TYPES).map(([k, v]) => `<option value="${k}" ${dl.type === k ? 'selected' : ''}>${v.label}</option>`).join('');
+  return `<div class="dl-row" data-id="${esc(dl.id)}">
+    <select class="dl-type" aria-label="Deadline type">${opts}</select>
+    <input class="dl-title" value="${esc(dl.title || '')}" maxlength="50" placeholder="Title (optional)" aria-label="Deadline title">
+    <input type="date" class="dl-date" value="${esc(dl.date || '')}" aria-label="Due date">
+    <label class="chk-line dl-hours-wrap" title="Prep hours. Leave blank and the planner estimates it.">Prep <input type="number" class="dl-hours" min="0.5" max="200" step="0.5" value="${+dl.hours > 0 ? dl.hours : ''}" placeholder="auto" aria-label="Prep hours (blank = estimate)"> h</label>
+    <label class="chk-line dl-rep" title="Repeats every week on the same weekday"><input type="checkbox" class="dl-repeat" ${dl.repeat ? 'checked' : ''}> Weekly</label>
+    <button type="button" class="btn sm ghost danger dl-del" aria-label="Remove this deadline">✕</button>
+    <label class="dl-until-wrap chk-line" ${dl.repeat ? '' : 'hidden'}>until <input type="date" class="dl-until" value="${esc(dl.until || '')}" aria-label="Last week it repeats (optional)"></label>
+    <span class="dl-est"></span>
+  </div>`;
+}
+
+// sessionKey: set when opened from a study block, which adds a "This session" panel on top
+function courseDialog(id, sessionKey) {
+  const existing = state.courses.find(c => c.id === id);
+  const c = existing || { name:'', color:PALETTE[state.courses.length % PALETTE.length], difficulty:3, confidence:3,
+    deadlines:[{ id:uid(), type:'exam', title:'', date:'', hours:null, repeat:false, until:'' }] };
+  const sev = existing && sessionKey ? findEvent(sessionKey) : null;
+  const sessionHtml = sev ? `
+    <section class="session-box" style="--c:${esc(c.color)}" aria-label="This study session">
+      <div class="session-head"><b>This session</b><span>${DAY_FULL[sev.day]} ${fmtRange(sev.start, sev.end)}${sev.done ? ' · Done' : ''}</span></div>
+      <ul class="why-list">${whyItems(sev).map(t => `<li>${esc(t)}</li>`).join('')}</ul>
+      <div class="hint">${esc(targetLine(c))}</div>
+      <div class="row-btns">
+        <button type="button" class="btn sm primary" id="sessDone">${sev.done ? 'Mark not done' : 'Mark done'}</button>
+        ${sev.pinned && !sev.done ? '<button type="button" class="btn sm" id="sessUnpin">Let the planner pick the time</button>' : ''}
+      </div>
+    </section>` : '';
+  openDialog(`
+    <h2 id="dlgTitle">${existing ? 'Edit course' : 'Add course'}</h2>${sessionHtml}
+    <label class="field"><span>Course name</span><input name="name" required maxlength="60" value="${esc(c.name)}" placeholder="e.g. Linear Algebra" autocomplete="off"></label>
+    <label class="field" style="flex-direction:row;align-items:center;gap:10px"><span>Color</span><input type="color" name="color" value="${esc(c.color)}"></label>
+    <fieldset><legend>Difficulty</legend>${scale('difficulty', c.difficulty, 'easy', 'very hard')}</fieldset>
+    <fieldset><legend>Current confidence</legend>${scale('confidence', c.confidence, 'lost', 'solid')}</fieldset>
+    <fieldset class="dl-box"><legend>Deadlines <small class="muted">exams, projects, papers, quizzes, readings…</small></legend>
+      <div id="dlList" class="dl-list">${(c.deadlines || []).map(dlRowHtml).join('')}</div>
+      <div class="row-btns" style="align-items:center"><button type="button" class="btn sm" id="dlAdd">+ Add deadline</button>
+        <span class="hint" style="margin:0">Prep hours blank = estimated from type, difficulty and confidence.</span></div>
+    </fieldset>
+    <div class="error" role="alert"></div>
+    <div class="dlg-actions">
+      ${existing ? '<button type="button" class="btn ghost danger" id="delBtn">Delete</button>' : ''}
+      <span class="spacer"></span>
+      <button type="button" class="btn" data-dlg="cancel">Cancel</button>
+      <button type="submit" class="btn primary">${existing ? 'Save' : 'Add course'}</button>
+    </div>`,
+    fd => {
+      const name = (fd.get('name') || '').trim();
+      if (!name) return 'Please give the course a name.';
+      // read each deadline row; rows left completely blank are ignored
+      const deadlines = [];
+      for (const [i, row] of $$('.dl-row', dlgForm).entries()) {
+        const get = sel => $(sel, row);
+        const title = get('.dl-title').value.trim(), date = get('.dl-date').value, hours = +get('.dl-hours').value;
+        const repeat = get('.dl-repeat').checked, until = get('.dl-until').value;
+        if (!date && !title && !hours) continue;
+        if (!date) return `Deadline ${i + 1}: pick a due date.`;
+        if (repeat && until && until < date) return `Deadline ${i + 1}: "until" must be after the first due date.`;
+        deadlines.push({ id: row.dataset.id || uid(), type: get('.dl-type').value, title, date, hours: hours > 0 ? hours : null, repeat, until: repeat ? until : '' });
+      }
+      const data = { name, color:fd.get('color'), difficulty:+fd.get('difficulty') || 3, confidence:+fd.get('confidence') || 3, deadlines };
+      if (existing) Object.assign(existing, data); else state.courses.push({ id:uid(), ...data });
+      commit((existing ? 'Course updated' : 'Course added') + (deadlines.length ? '' : '. Add a deadline to plan study time for it'));
+    });
+
+  dlg.classList.add('mid');      // a little wider than other popups, to fit the deadline rows
+  // deadline rows: add / remove, show "until" for weekly ones, and a live prep-time estimate
+  const list = $('#dlList');
+  const refreshEst = () => {
+    const cur = { difficulty: +($('input[name=difficulty]:checked', dlgForm) || {}).value || 3, confidence: +($('input[name=confidence]:checked', dlgForm) || {}).value || 3 };
+    $$('.dl-row', list).forEach(row => {
+      const dl = { type: $('.dl-type', row).value, hours: +$('.dl-hours', row).value || null };
+      $('.dl-until-wrap', row).hidden = !$('.dl-repeat', row).checked;
+      $('.dl-est', row).textContent = `≈ ${fmtDur(prepMin(cur, dl))} of prep${$('.dl-repeat', row).checked ? ' each week' : ''}`;
+    });
+    if (!$$('.dl-row', list).length) list.innerHTML = '<p class="hint" style="margin:0">No deadlines yet. Without one, no study time is planned for this course.</p>';
+  };
+  $('#dlAdd').onclick = () => {
+    if (!$('.dl-row', list)) list.innerHTML = '';
+    list.insertAdjacentHTML('beforeend', dlRowHtml({ id: uid(), type: 'exam', title: '', date: '', hours: null, repeat: false, until: '' }));
+    refreshEst(); $('.dl-row:last-child .dl-type', list).focus();
+  };
+  list.addEventListener('click', e => { const del = e.target.closest('.dl-del'); if (del) { del.closest('.dl-row').remove(); refreshEst(); } });
+  // property handlers (not addEventListener) so reopening the editor doesn't stack them up
+  dlgForm.oninput = refreshEst;
+  dlgForm.onchange = refreshEst;
+  refreshEst();
+  // session panel buttons (only present when opened from a study block)
+  if (sev) {
+    $('#sessDone').onclick = () => { closeDialog(); toggleDone(sessionKey); };
+    if ($('#sessUnpin')) $('#sessUnpin').onclick = () => { closeDialog(); unpinSession(sessionKey); };
+  }
+  if (existing) $('#delBtn').onclick = () => {
+    if (!confirm(`Delete "${existing.name}"?`)) return;
+    state.courses = state.courses.filter(x => x.id !== id);
+    closeDialog(); commit('Course deleted');
+  };
+}
+
+// occKey: "commitmentId@day" when opened from a calendar block
+function commitDialog(id, occKey) {
+  const existing = state.commitments.find(c => c.id === id);
+  const c = existing || { name:'', days:[], flex:'locked', start:'09:00', end:'10:00', earliest:'16:00', latest:'21:00', duration:60 };
+  const flexOpts = Object.entries(FLEX).map(([k, v]) => `
+    <input type="radio" id="flex-${k}" name="flex" value="${k}" ${c.flex === k ? 'checked' : ''}>
+    <label for="flex-${k}"><span>${ICON[k]} ${v.label}</span><small>${v.desc}</small></label>`).join('');
+  const dayChips = DAYS.map((d, i) => `<input type="checkbox" id="day${i}" name="days" value="${i}" ${c.days.includes(i) ? 'checked' : ''}><label for="day${i}">${d}</label>`).join('');
+  // opened from a Movable block you dragged this week? offer to undo that move
+  const movedHere = existing && occKey && weekData(weekStart()).moved && weekData(weekStart()).moved[occKey] != null;
+  const movedHtml = movedHere ? `<div class="session-box" style="--c:var(--movable)"><div class="session-head"><b>This week</b>
+      <span>${DAY_FULL[+occKey.split('@')[1]]}: you moved it to ${fmtTime(weekData(weekStart()).moved[occKey])}</span></div>
+      <div class="row-btns"><button type="button" class="btn sm" id="resetMove">Let the planner choose again</button></div></div>` : '';
+  openDialog(`
+    <h2 id="dlgTitle">${existing ? 'Edit commitment' : 'Add commitment'}</h2>${movedHtml}
+    <label class="field"><span>Name</span><input name="name" required maxlength="60" value="${esc(c.name)}" placeholder="e.g. Soccer practice" autocomplete="off"></label>
+    <label class="field"><span>Location <small>(optional)</small></span><input name="location" maxlength="80" value="${esc(c.location || '')}" placeholder="e.g. Thornton Hall 101" autocomplete="off"></label>
+    <fieldset><legend>Flexibility</legend><div class="seg flex-opts">${flexOpts}</div></fieldset>
+    <fieldset><legend>Repeats on</legend><div class="seg">${dayChips}</div></fieldset>
+    <div class="row" id="fixedTimes">
+      <label class="field"><span>Start</span><input type="time" name="start" value="${c.start || '09:00'}" step="300"></label>
+      <label class="field"><span>End</span><input type="time" name="end" value="${c.end || '10:00'}" step="300"></label>
+    </div>
+    <div id="movableTimes">
+      <div class="row">
+        <label class="field"><span>Earliest start</span><input type="time" name="earliest" value="${c.earliest || '16:00'}" step="300"></label>
+        <label class="field"><span>Latest end</span><input type="time" name="latest" value="${c.latest || '21:00'}" step="300"></label>
+        <label class="field"><span>Duration (min)</span><input type="number" name="duration" min="5" max="600" step="5" value="${c.duration || 60}"></label>
+      </div>
+      <div class="hint">The scheduler will place it anywhere inside this window.</div>
+    </div>
+    <div class="error" role="alert"></div>
+    <div class="dlg-actions">
+      ${existing ? '<button type="button" class="btn ghost danger" id="delBtn">Delete</button>' : ''}
+      <span class="spacer"></span>
+      <button type="button" class="btn" data-dlg="cancel">Cancel</button>
+      <button type="submit" class="btn primary">${existing ? 'Save' : 'Add commitment'}</button>
+    </div>`,
+    fd => {
+      const name = (fd.get('name') || '').trim();
+      const flex = fd.get('flex');
+      const days = fd.getAll('days').map(Number);
+      if (!name) return 'Please give the commitment a name.';
+      if (!days.length) return 'Pick at least one day.';
+      const data = { name, flex, days, location: (fd.get('location') || '').trim() };
+      if (flex === 'movable') {
+        const e = toMin(fd.get('earliest')), l = toMin(fd.get('latest')) || 1440, dur = Math.round(+fd.get('duration'));
+        if (!(dur > 0)) return 'Duration must be more than 0 minutes.';
+        if (l <= e) return 'Latest end must be after earliest start.';
+        if (dur > l - e) return `A ${fmtDur(dur)} block won't fit in a ${fmtDur(l - e)} window.`;
+        Object.assign(data, { earliest:fd.get('earliest'), latest:fd.get('latest'), duration:dur });
+      } else {
+        const s = toMin(fd.get('start')), en = toMin(fd.get('end')) || 1440;
+        if (en <= s) return 'End time must be after start time.';
+        Object.assign(data, { start:fd.get('start'), end:fd.get('end') });
+      }
+      if (existing) {
+        ['start','end','earliest','latest','duration'].forEach(k => delete existing[k]);
+        Object.assign(existing, data);
+      } else state.commitments.push({ id:uid(), ...data });
+      commit(existing ? 'Commitment updated' : 'Commitment added');
+    });
+  const sync = () => {
+    const mov = $('input[name=flex]:checked', dlgForm).value === 'movable';
+    $('#fixedTimes').hidden = mov; $('#movableTimes').hidden = !mov;
+  };
+  $$('input[name=flex]', dlgForm).forEach(r => r.addEventListener('change', sync));
+  sync();
+  if (movedHere) $('#resetMove').onclick = () => {
+    delete weekMut().moved[occKey];
+    closeDialog(); commit(`${existing.name} placed automatically again`);
+  };
+  if (existing) $('#delBtn').onclick = () => {
+    if (!confirm(`Delete "${existing.name}"?`)) return;
+    state.commitments = state.commitments.filter(x => x.id !== id);
+    closeDialog(); commit('Commitment deleted');
+  };
+}
+
+/* =========================================================
+   Quick add: read a typed or pasted class schedule
+   Example lines it understands:
+     Calculus II, MWF 9-10:15am, Thornton Hall 101
+     BIO 2010 TuTh 2pm-3:15pm Gilmer 130
+     Organic Chem Lab  Wed 1:00–4:00 PM  Chem Bldg B12
+     9:00-9:50 M/W/F Intro Psychology | Nau Hall 101
+   ========================================================= */
+const DAY_LOOKUP = {};
+[[0, ['monday','mon','mo','m']], [1, ['tuesday','tues','tue','tu','t']], [2, ['wednesday','weds','wed','we','w']],
+ [3, ['thursday','thurs','thur','thu','th','r']], [4, ['friday','fri','fr','f']], [5, ['saturday','sat','sa']], [6, ['sunday','sun','su']]]
+  .forEach(([i, words]) => words.forEach(w => { DAY_LOOKUP[w] = i; }));
+const CONNECTORS = new Set(['at', 'from', 'on', '@', '&', 'and', ',', '|', '-', ';', ':', '·', 'every']);
+
+// One word → the weekdays it names, or null. Handles "Mon", "Th", "M-F", "Mon/Wed", and compact codes like "MWF", "TTh", "TuTh", "MoWeFr".
+function tokenDays(raw) {
+  const tok = raw.replace(/^[,.;:|()]+|[,.;:|()]+$/g, '');
+  if (!tok) return null;
+  const low = tok.toLowerCase();
+  if (low in DAY_LOOKUP) return [DAY_LOOKUP[low]];
+  if (low === 'daily' || low === 'everyday') return [0,1,2,3,4,5,6];
+  if (low === 'weekdays') return [0,1,2,3,4];
+  if (low === 'weekends') return [5,6];
+  if (/[\/+&]/.test(tok)) {                                    // Mon/Wed, Tu/Th, M+W
+    const parts = tok.split(/[\/+&]/).filter(Boolean).map(tokenDays);
+    return parts.length && parts.every(Boolean) ? [...new Set(parts.flat())] : null;
+  }
+  const rg = low.match(/^([a-z]+)-([a-z]+)$/);                 // M-F, Mon-Fri
+  if (rg && rg[1] in DAY_LOOKUP && rg[2] in DAY_LOOKUP) {
+    const out = []; for (let d = DAY_LOOKUP[rg[1]]; out.length < 7; d = (d + 1) % 7) { out.push(d); if (d === DAY_LOOKUP[rg[2]]) break; }
+    return out;
+  }
+  // compact codes in any letter case: "MWF", "mwf", "TTh", "tth", "TR", "MoWeFr", "mowefr".
+  // Days are only looked for next to the time (or in the Days field), and a few real words built from
+  // day letters are excluded, so ordinary words aren't mistaken for days.
+  if (/^(th|tu|mo|we|fr|sa|su|m|t|w|r|f)+$/i.test(tok) && !['wet', 'tut', 'mom', 'mfr', 'turf'].includes(low)) {
+    const out = [];
+    low.replace(/th|tu|mo|we|fr|sa|su|m|t|w|r|f/g, u => { out.push(DAY_LOOKUP[u]); return ''; });
+    return [...new Set(out)];
+  }
+  return null;
+}
+
+// "9", "00", "am" → minutes since midnight, working out am/pm when it's missing
+function resolveTimes(h1, m1, s1, h2, m2, s2) {
+  const conv = (h, m, s) => s ? ((h % 12) + (s === 'p' ? 12 : 0)) * 60 + m : h * 60 + m;
+  const notes = [];
+  if (!s1 && !s2) {
+    if (h1 > 12 || h2 > 12 || h1 === 0) return { start: conv(h1, m1), end: conv(h2, m2), notes };   // 24-hour clock
+    s1 = h1 >= 7 && h1 <= 11 ? 'a' : 'p';                       // classes 7–11 → morning, 12–6 → afternoon
+    notes.push(`No am/pm given, so I assumed ${s1 === 'a' ? 'morning' : 'afternoon'}`);
+  }
+  if (!s1) s1 = s2;
+  if (!s2) s2 = s1;
+  let a = conv(h1, m1, s1), b = conv(h2, m2, s2);
+  if (b <= a && s1 === s2) {                                   // "11-12:15pm" means 11am–12:15pm
+    const a2 = conv(h1, m1, s1 === 'p' ? 'a' : 'p');
+    if (a2 < b) a = a2; else { const b2 = conv(h2, m2, 'p'); if (b2 > a) b = b2; }
+  }
+  return { start: a, end: b, notes };
+}
+
+// A time: "9", "9:30", "11.30", or without a separator "930" / "1130" / "1400"
+const T_RE = '(\\d{3,4}|\\d{1,2}(?:[:.]\\d{2})?)';
+const SUF_RE = '(a\\.?m\\.?|p\\.?m\\.?|a|p)?';
+const sufOf = x => x ? x[0].toLowerCase() : '';
+function splitTime(t) {
+  if (/[:.]/.test(t)) { const [h, m] = t.split(/[:.]/); return { h: +h, m: +m, sep: true, compact: false }; }
+  if (t.length >= 3) return { h: +t.slice(0, -2), m: +t.slice(-2), sep: false, compact: true };   // "1130" → 11:30
+  return { h: +t, m: 0, sep: false, compact: false };
+}
+const validTime = x => x.h <= 24 && x.m < 60;
+const normLine = t => t.replace(/[–—−]/g, '-').replace(/\bnoon\b/gi, '12pm').replace(/\s+/g, ' ');
+
+// Find the class time in a piece of text → { start, end, notes, index, length } or null.
+// Course codes can look like times ("CS 2100-001"), so every candidate is scored: am/pm and ":" make it
+// clearly a time, a bare 3–4 digit number counts against it, and later in the line wins ties.
+function findTime(s) {
+  const range = new RegExp(`\\b${T_RE}\\s*${SUF_RE}\\s*(?:-|to|until)\\s*${T_RE}\\s*${SUF_RE}(?![a-z0-9])`, 'gi');
+  let best = null;
+  for (const m of s.matchAll(range)) {
+    const a = splitTime(m[1]), b = splitTime(m[3]);
+    if (!validTime(a) || !validTime(b)) continue;
+    const score = (m[2] || m[4] ? 3 : 0) + (a.sep || b.sep ? 2 : 0) - (a.compact || b.compact ? 1 : 0) + m.index / 1000;
+    if (!best || score > best.score) best = { m, a, b, score };
+  }
+  if (best) {
+    const t = resolveTimes(best.a.h, best.a.m, sufOf(best.m[2]), best.b.h, best.b.m, sufOf(best.m[4]));
+    return { ...t, index: best.m.index, length: best.m[0].length };
+  }
+  // only a start time ("Yoga Sat 9am", "1130 am"): it needs am/pm to count, and lasts 1 hour
+  const single = new RegExp(`\\b${T_RE}\\s*(a\\.?m\\.?|p\\.?m\\.?)(?![a-z])`, 'gi');
+  for (const m of s.matchAll(single)) {
+    const a = splitTime(m[1]);
+    if (!validTime(a)) continue;
+    const t = resolveTimes(a.h, a.m, sufOf(m[2]), a.h, a.m, sufOf(m[2]));
+    return { start: t.start, end: t.start + 60, notes: [...t.notes, 'No end time, so I assumed 1 hour'], index: m.index, length: m[0].length };
+  }
+  return null;
+}
+
+// A field that is only days ("MWF", "Tue & Thu", "Mon/Wed") → sorted weekday numbers, else null
+function daysOfText(text) {
+  const days = [];
+  for (const tok of text.trim().split(/\s+/)) {
+    const d = tokenDays(tok);
+    if (d) days.push(...d);
+    else if (!CONNECTORS.has(tok.toLowerCase())) return null;
+  }
+  return days.length ? [...new Set(days)].sort() : null;
+}
+
+// Read one line into { name, days, start, end, location, notes, problems }
+function parseScheduleLine(line) {
+  const src = line.trim();
+  const out = { src, name: '', days: [], start: null, end: null, location: '', notes: [], problems: [] };
+  const checkEnd = () => { if (out.start != null && (out.end <= out.start || out.end > 1440)) out.problems.push('End time is before the start time'); };
+
+  // 1. The suggested format, "Class name, Days, Time, Location" (commas or tabs): read the fields in order
+  const fields = src.split(/\s*(?:\t+|,|\|)\s*/).map(f => f.trim()).filter(Boolean);
+  if (fields.length >= 3) {
+    const days = daysOfText(normLine(fields[1]));
+    const t = days && findTime(' ' + normLine(fields[2]) + ' ');
+    if (days && t) {
+      Object.assign(out, { name: fields[0].slice(0, 60), days, start: t.start, end: t.end, location: fields.slice(3).join(', ').slice(0, 80) });
+      out.notes.push(...t.notes); checkEnd();
+      return out;
+    }
+  }
+
+  // 2. Anything else: find the time, then the days next to it; name before, location after
+  const s = ' ' + normLine(src.replace(/\t+/g, ' | ')) + ' ';
+  let before, after;
+  const t = findTime(s);
+  if (t) {
+    Object.assign(out, { start: t.start, end: t.end }); out.notes.push(...t.notes);
+    before = s.slice(0, t.index); after = s.slice(t.index + t.length);
+  } else {
+    out.problems.push('No time found');
+    before = s; after = '';
+  }
+  checkEnd();
+
+  // days: look right before the time first ("MWF 9-10"), then right after it ("9-10 MWF")
+  const takeDays = (text, fromEnd) => {
+    const toks = text.trim().split(' ').filter(Boolean);
+    const days = []; let i = fromEnd ? toks.length - 1 : 0, seen = false;
+    while (i >= 0 && i < toks.length) {
+      const tk = toks[i], d = tokenDays(tk);
+      if (d) { days.push(...d); seen = true; }
+      else if (!CONNECTORS.has(tk.toLowerCase().replace(/[,.]$/, '')) && !/^[,|;:·-]+$/.test(tk)) break;
+      i += fromEnd ? -1 : 1;
+    }
+    if (!seen) return null;
+    const rest = fromEnd ? toks.slice(0, i + 1) : toks.slice(i);
+    return { days: [...new Set(days)].sort(), rest: rest.join(' ') };
+  };
+  let found = out.start != null ? takeDays(before, true) : null;
+  if (found) before = found.rest;
+  else if ((found = takeDays(after, false))) after = found.rest;
+  else if (out.start == null && (found = takeDays(before, true))) before = found.rest;   // no time: days may end the line
+  if (found) out.days = found.days; else out.problems.push('No days found');
+
+  // name = text before the days/time, location = text after; strip separators and "at/in/@"
+  const clean = t => t.replace(/^[\s,|;:·@-]+|[\s,|;:·@-]+$/g, '').replace(/^(at|in|room:?)\s+/i, m => /room/i.test(m) ? m : '').trim();
+  out.name = clean(before); out.location = clean(after);
+  if (!out.name && out.location) {                              // "9-10 MWF Calculus, Room 5": name came after
+    const parts = out.location.split(/\s*(?:,|\||;| - )\s*/);
+    out.name = parts.shift(); out.location = parts.join(', ');
+  }
+  if (!out.name) out.problems.push('No class name found');
+  out.name = out.name.slice(0, 60); out.location = out.location.slice(0, 80);
+  return out;
+}
+
+// "Calculus II Lecture" / "BIO 2010 Lab" → "Calculus II" / "BIO 2010" (so lecture + lab make one course)
+const courseBase = n => n.replace(/\s*[-–(]?\s*\b(lecture|lec|lab|laboratory|discussion|disc|recitation|rec|seminar|sem|tutorial|section\s*\w+)\b\)?\s*$/i, '').trim() || n;
+
+function quickAddDialog() {
+  openDialog(`
+    <h2 id="dlgTitle">Quick add classes</h2>
+    <div class="qa-format-box">
+      <div class="qa-format-label">One class per line, in this order, separated by commas:</div>
+      <div class="qa-format" aria-label="Format: class name, days, time, location (optional)">
+        <span>Class name</span><i aria-hidden="true">,</i><span>Days</span><i aria-hidden="true">,</i><span>Time</span><i aria-hidden="true">,</i><span class="opt">Location <small>(optional)</small></span>
+      </div>
+      <div class="qa-example"><span class="muted">Example:</span> <code>Calculus II, MWF, 9:00-10:15am, Thornton Hall 101</code></div>
+      <div class="hint" style="margin:0">Days: <code>MWF</code> <code>TTh</code> <code>TuTh</code> <code>Mon/Wed</code> <code>M-F</code> · Times: <code>9-10:15am</code> <code>1130am-1245pm</code> <code>930-1045</code> <code>14:00-15:15</code>. Pasting from your school's portal usually works too, even if it isn't in this order.</div>
+    </div>
+    <label class="field"><span>Your schedule</span>
+      <textarea name="qa" rows="5" spellcheck="false" placeholder="Calculus II, MWF, 9:00-10:15am, Thornton Hall 101&#10;BIO 2010, TuTh, 1130am-1245pm, Gilmer 130&#10;Organic Chem Lab, Wed, 1-4pm"></textarea></label>
+    <div class="row-btns" style="align-items:center"><button type="button" class="btn sm" id="qaRead">Read schedule</button><span class="hint" id="qaCount" style="margin:0">Ctrl+Enter also reads it.</span></div>
+    <div id="qaRows" class="qa-rows" aria-live="polite"></div>
+    <div class="error" role="alert"></div>
+    <div class="dlg-actions">
+      <span class="spacer"></span>
+      <button type="button" class="btn" data-dlg="cancel">Cancel</button>
+      <button type="submit" class="btn primary" id="qaAdd" disabled>Add classes</button>
+    </div>`, fd => submitQuickAdd(fd), 'textarea');
+  dlg.classList.add('wide');
+
+  const ta = $('textarea', dlgForm);
+  const read = () => renderQuickRows(ta.value);
+  $('#qaRead').onclick = read;
+  ta.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); read(); } });
+  ta.addEventListener('paste', () => setTimeout(read, 0));     // pasting reads it right away
+}
+
+let qaParsed = [];
+function renderQuickRows(text) {
+  qaParsed = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean).map(parseScheduleLine);
+  const box = $('#qaRows'), err = $('.error', dlgForm);
+  err.textContent = '';
+  if (!qaParsed.length) { box.innerHTML = ''; $('#qaAdd').disabled = true; $('#qaCount').textContent = 'Type or paste at least one line.'; return; }
+  const have = new Set(state.courses.map(c => courseBase(c.name).toLowerCase()));
+  const batch = new Set();
+  box.innerHTML = qaParsed.map((p, i) => {
+    const ok = !p.problems.length;
+    // offer to create the course too, unless it already exists (or an earlier line in this batch adds it)
+    const base = courseBase(p.name).toLowerCase(), exists = have.has(base), dup = batch.has(base);
+    if (base) batch.add(base);
+    const chips = DAYS.map((d, di) => `<input type="checkbox" id="qa${i}d${di}" name="d${i}" value="${di}" ${p.days.includes(di) ? 'checked' : ''}><label for="qa${i}d${di}">${d[0]}${d === 'Thu' ? 'h' : d === 'Sat' || d === 'Sun' ? d[1] : ''}</label>`).join('');
+    const msgs = [...p.problems.map(t => `<span class="qa-bad">⚠ ${esc(t)}</span>`), ...p.notes.map(t => `<span class="qa-note">${esc(t)}</span>`)].join(' ');
+    return `<fieldset class="qa-row${ok ? '' : ' bad'}">
+      <legend class="qa-src"><label class="chk-line"><input type="checkbox" name="inc${i}" ${ok ? 'checked' : ''}> <span>Line ${i + 1}:</span> <code>${esc(p.src)}</code></label></legend>
+      ${msgs ? `<div class="qa-msgs">${msgs}</div>` : ''}
+      <div class="qa-grid">
+        <label class="field qa-name"><span>Name</span><input name="n${i}" value="${esc(p.name)}" maxlength="60"></label>
+        <div class="field qa-days"><span>Days</span><div class="seg mini">${chips}</div></div>
+        <label class="field qa-start"><span>Start</span><input type="time" name="s${i}" value="${p.start != null ? toHHMM(p.start) : ''}" step="300"></label>
+        <label class="field qa-end"><span>End</span><input type="time" name="e${i}" value="${p.end != null && p.end <= 1440 ? toHHMM(p.end % 1440 === 0 && p.end ? 0 : p.end) : ''}" step="300"></label>
+        <label class="field qa-loc"><span>Location</span><input name="l${i}" value="${esc(p.location)}" maxlength="80"></label>
+        <label class="field qa-flex"><span>Flexibility</span><select name="f${i}">${['locked', 'skippable', 'optional'].map(f => `<option value="${f}">${FLEX[f].label}</option>`).join('')}</select></label>
+      </div>
+      <div class="qa-opts">
+        ${exists ? `<span class="hint" style="margin:0">Course "${esc(courseBase(p.name))}" already exists, so its study time is already planned.</span>`
+          : `<label class="chk-line"><input type="checkbox" name="c${i}" ${dup ? '' : 'checked'}> Also add as a course (for study planning)</label>
+             <span class="chk-line">First deadline <select name="t${i}" class="qa-date" aria-label="First deadline type">${Object.entries(DL_TYPES).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}</select>
+               <input type="date" name="x${i}" class="qa-date" aria-label="First deadline date"> <small class="muted">(optional)</small></span>`}
+      </div>
+    </fieldset>`;
+  }).join('');
+  const good = qaParsed.filter(p => !p.problems.length).length;
+  $('#qaCount').textContent = `Read ${qaParsed.length} line${qaParsed.length > 1 ? 's' : ''}: ${good} ready${good < qaParsed.length ? `, ${qaParsed.length - good} need fixing (tick them once fixed)` : ''}. Check the details, then add.`;
+  $('#qaAdd').disabled = false;
+}
+
+function submitQuickAdd(fd) {
+  if (!qaParsed.length) return 'Read your schedule first.';
+  const rows = [], newCourses = [];
+  for (let i = 0; i < qaParsed.length; i++) {
+    if (!fd.get('inc' + i)) continue;
+    const name = (fd.get('n' + i) || '').trim(), days = fd.getAll('d' + i).map(Number);
+    const st = fd.get('s' + i), en = fd.get('e' + i);
+    if (!name) return `Line ${i + 1}: add a name.`;
+    if (!days.length) return `Line ${i + 1}: pick at least one day.`;
+    if (!st || !en) return `Line ${i + 1}: set a start and end time.`;
+    if ((toMin(en) || 1440) <= toMin(st)) return `Line ${i + 1}: the end time must be after the start time.`;
+    rows.push({ id: uid(), name, days, flex: fd.get('f' + i) || 'locked', start: st, end: en, location: (fd.get('l' + i) || '').trim() });
+    if (fd.get('c' + i)) newCourses.push({ name: courseBase(name), dueDate: fd.get('x' + i) || '', dueType: fd.get('t' + i) || 'exam' });
+  }
+  if (!rows.length) return 'Tick at least one line to add.';
+
+  // skip classes that are already in your commitments (same name, days and times)
+  const sig = c => [c.name.toLowerCase(), [...c.days].sort().join(''), c.start, c.end].join('|');
+  const existing = new Set(state.commitments.map(sig));
+  const fresh = rows.filter(r => !existing.has(sig(r)));
+  state.commitments.push(...fresh);
+
+  const seen = new Set(state.courses.map(c => courseBase(c.name).toLowerCase()));
+  let noDate = 0, added = 0;
+  newCourses.forEach(nc => {
+    const k = nc.name.toLowerCase();
+    if (seen.has(k)) return;
+    seen.add(k);
+    if (!nc.dueDate) noDate++;
+    // a first deadline only if you gave a date; otherwise the course waits for you to add its deadlines
+    const deadlines = nc.dueDate ? [{ id: uid(), type: nc.dueType, title: '', date: nc.dueDate, hours: null, repeat: false, until: '' }] : [];
+    state.courses.push({ id: uid(), name: nc.name, color: PALETTE[state.courses.length % PALETTE.length], difficulty: 3, confidence: 3, deadlines });
+    added++;
+  });
+  // if courses were created, show them so you can add deadlines and set difficulty and confidence
+  if (added) state.ui.tab = 'courses';
+  const skipped = rows.length - fresh.length;
+  commit(`Added ${fresh.length} class${fresh.length === 1 ? '' : 'es'}${added ? ` and ${added} course${added > 1 ? 's' : ''}` : ''}${skipped ? ` (${skipped} already there)` : ''}`
+    + (noDate ? `. ${noDate} course${noDate > 1 ? 's have' : ' has'} no deadlines yet: add exams, projects or quizzes in Courses` : ''));
+}
+
+/* =========================================================
+   Global events
+   ========================================================= */
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-act]');
+  if (!t || t.closest('dialog')) return;
+  const id = t.dataset.id;
+  switch (t.dataset.act) {
+    case 'add-course': state.ui.tab = 'courses'; render(); courseDialog(); break;
+    case 'edit-course': courseDialog(id, t.dataset.key); break;
+    case 'add-commit': commitDialog(); break;
+    case 'quick-add': quickAddDialog(); break;     // available from both the Courses and Commitments tabs
+    case 'edit-commit': commitDialog(id, t.dataset.key); break;
+    case 'toggle-done': toggleDone(t.dataset.key); break;
+    case 'load-sample': loadSample(); break;
+    // conflict banner actions (all scoped to the week on screen)
+    case 'skip-accept': {
+      const w = weekMut(), key = t.dataset.key, name = skipName(key);
+      if (!w.skipped.includes(key)) w.skipped.push(key);
+      commit(`Skipped ${name}. Schedule updated`); focusBanner(); break;
+    }
+    case 'skip-reject': {
+      const w = weekMut(), key = t.dataset.key;
+      if (!w.rejected.includes(key)) w.rejected.push(key);
+      commit(`Keeping ${skipName(key)}`); focusBanner(); break;
+    }
+    case 'skip-restore': {
+      const w = weekMut(), key = t.dataset.key;
+      w.skipped = w.skipped.filter(k => k !== key);
+      commit(`Restored ${skipName(key)}`); focusBanner(); break;
+    }
+    case 'skip-unreject': weekMut().rejected = []; commit(); focusBanner(); break;
+  }
+});
+
+// "Club meeting (Thu)" from an occurrence key like "abc123@3"
+function skipName(key) {
+  const [id, d] = key.split('@'), c = state.commitments.find(x => x.id === id);
+  return c ? `${c.name} (${DAYS[+d]})` : 'item';
+}
+// after the banner re-renders, keep keyboard focus inside it instead of losing it to <body>
+function focusBanner() {
+  const b = $('#banner');
+  const target = b.hidden ? $('#cal') : ($('[data-act="skip-accept"]', b) || $('[data-act="skip-restore"]', b) || b);
+  if (target === b || target === $('#cal')) target.tabIndex = -1;
+  target.focus({ preventScroll: true });
+}
+
+$$('.tab').forEach(t => {
+  t.addEventListener('click', () => { state.ui.tab = t.dataset.tab; save(); renderTabs(); renderPanel(); });
+  t.addEventListener('keydown', e => {   // arrow keys move between tabs
+    if (!['ArrowLeft','ArrowRight'].includes(e.key)) return;
+    const tabs = $$('.tab'), i = tabs.indexOf(t);
+    const n = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+    n.click(); n.focus();
+  });
+});
+
+$('#prevWeek').onclick = () => { state.ui.weekOffset--; commit(); };
+$('#nextWeek').onclick = () => { state.ui.weekOffset++; commit(); };
+$('#thisWeek').onclick = () => { state.ui.weekOffset = 0; commit(); scrollToToday(); };
+
+/* ---------- Simple / Detailed view ---------- */
+function setDetailed(on) { state.ui.detailed = on; commit(on ? 'Detailed view' : 'Simple view'); }
+$('#viewSimple').onclick = () => setDetailed(false);
+$('#viewDetailed').onclick = () => setDetailed(true);
+
+// On narrow screens the week scrolls sideways inside the calendar: bring today's column into view
+function scrollToToday() {
+  const cal = $('#cal'), col = $('.day.today', cal);
+  if (!col || cal.scrollWidth <= cal.clientWidth) return;
+  cal.scrollLeft = Math.max(0, col.offsetLeft - 60);
+}
+
+/* ---------- Keyboard shortcuts (ignored while typing or in a dialog) ---------- */
+document.addEventListener('keydown', e => {
+  if (e.altKey || e.ctrlKey || e.metaKey || dlg.open) return;
+  if (e.target.closest && e.target.closest('input,textarea,select,[contenteditable]')) return;
+  const k = e.key.toLowerCase();
+  if (k === '[') $('#prevWeek').click();
+  else if (k === ']') $('#nextWeek').click();
+  else if (k === 't') $('#thisWeek').click();
+  else if (k === 'd') setDetailed(!state.ui.detailed);
+  else return;
+  e.preventDefault();
+});
+
+function loadSample() {
+  if ((state.courses.length || state.commitments.length) && !confirm('Replace your current courses and commitments with sample data?')) return;
+  const keep = state.settings;
+  state = sampleState();
+  state.settings = keep;
+  commit('Sample data loaded');
+}
+const dataMenu = $('#dataMenu');
+const closeMenu = () => { dataMenu.open = false; };
+$('#clearAll').onclick = () => {
+  closeMenu();
+  if (!confirm('Clear all courses, commitments, settings and progress? This cannot be undone. (Tip: Export first to keep a backup.)')) return;
+  state = defaultState();
+  commit('Everything cleared');
+};
+// close the Data menu on outside click or Escape
+document.addEventListener('click', e => { if (dataMenu.open && !dataMenu.contains(e.target)) closeMenu(); });
+dataMenu.addEventListener('keydown', e => { if (e.key === 'Escape') { closeMenu(); $('summary', dataMenu).focus(); } });
+dataMenu.addEventListener('click', e => { if (e.target.closest('[data-act="load-sample"]')) closeMenu(); });
+
+/* ---------- Export / Import ---------- */
+// Export: the whole state as a .json file you can keep as a backup or move to another device
+$('#exportBtn').onclick = () => {
+  closeMenu();
+  const blob = new Blob([JSON.stringify({ app: 'study-planner', exported: new Date().toISOString(), ...state }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `study-planner-${ymd(new Date())}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast('Exported your planner');
+};
+$('#importBtn').onclick = () => { closeMenu(); $('#importFile').value = ''; $('#importFile').click(); };
+
+// Check an imported file looks like planner data before replacing anything
+function validateImport(d) {
+  if (!d || typeof d !== 'object' || Array.isArray(d)) return 'That file is not planner data.';
+  if (!Array.isArray(d.courses) || !Array.isArray(d.commitments)) return 'That file is missing courses or commitments.';
+  const time = /^\d{2}:\d{2}$/, date = /^\d{4}-\d{2}-\d{2}$/;
+  for (const c of d.courses) {
+    if (!c || typeof c.name !== 'string') return 'A course in that file has no name.';
+    // older files have one examDate; newer ones a list of deadlines
+    if (c.examDate != null && !date.test(c.examDate)) return `Course "${c.name}" has an invalid exam date.`;
+    if (c.deadlines != null && (!Array.isArray(c.deadlines) || c.deadlines.some(x => !x || !date.test(x.date || ''))))
+      return `Course "${c.name}" has a deadline without a valid date.`;
+  }
+  for (const c of d.commitments) {
+    if (!c || typeof c.name !== 'string' || !Array.isArray(c.days) || !FLEX[c.flex]) return `Commitment "${c && c.name}" is not valid.`;
+    const ok = c.flex === 'movable' ? time.test(c.earliest) && time.test(c.latest) && c.duration > 0 : time.test(c.start) && time.test(c.end);
+    if (!ok) return `Commitment "${c.name}" has invalid times.`;
+  }
+  return null;
+}
+$('#importFile').onchange = async e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  let data;
+  try { data = JSON.parse(await f.text()); } catch { toast("Couldn't read that file: it isn't valid JSON"); return; }
+  const err = validateImport(data);
+  if (err) { toast(err); return; }
+  if (!confirm(`Replace everything with "${f.name}"? (${data.courses.length} courses, ${data.commitments.length} commitments)`)) return;
+  // re-issue ids that might be missing, clamp the 1–5 scales, keep defaults for anything absent
+  const next = migrate(data);
+  delete next.app; delete next.exported;
+  next.courses.forEach(c => { c.id = c.id || uid(); c.difficulty = clamp(+c.difficulty || 3, 1, 5); c.confidence = clamp(+c.confidence || 3, 1, 5); c.color = /^#[0-9a-f]{6}$/i.test(c.color) ? c.color : PALETTE[0]; });
+  next.commitments.forEach(c => { c.id = c.id || uid(); c.days = c.days.map(Number).filter(d => d >= 0 && d <= 6); });
+  state = next;
+  commit('Imported');
+};
+
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+/* =========================================================
+   Tooltips (explain-why) for study and Movable blocks
+   ========================================================= */
+const tip = $('#tip'), calEl = $('#cal');
+let grid = { gStart: 0, gEnd: 1440 };
+
+function tipHtml(ev) {
+  if (ev.kind === 'study') {
+    return `<div class="tip-head" style="--c:${esc(ev.course.color)}"><b>${esc(ev.course.name)}</b><span>${DAYS[ev.day]} ${fmtRange(ev.start, ev.end)}</span></div>
+      <div class="tip-sub">Why this session</div>
+      <ul>${whyItems(ev).map(t => `<li>${esc(t)}</li>`).join('')}</ul>
+      <div class="tip-foot">${esc(targetLine(ev.course))}</div>
+      <div class="tip-foot">${ev.done ? 'Click ✓ to undo' : 'Drag to move · ✓ to mark done · Alt+arrows from keyboard'}</div>`;
+  }
+  const c = ev.ref;
+  return `<div class="tip-head" style="--c:var(--movable)"><b>${esc(c.name)}</b><span>${DAYS[ev.day]} ${fmtRange(ev.start, ev.end)}</span></div>
+    <ul><li>${esc(ev.why)}</li><li>Allowed window: ${fmtRange(toMin(c.earliest), toMin(c.latest))}, ${fmtDur(c.duration)}</li></ul>
+    <div class="tip-foot">Drag up or down within its window · Alt+↑/↓ from keyboard</div>`;
+}
+function showTip(el) {
+  const ev = findEvent(el.dataset.key);
+  if (!ev || drag) return;
+  tip.innerHTML = tipHtml(ev);
+  tip.hidden = false;
+  // place to the right of the block, or to the left if there's no room; keep it on screen
+  const r = el.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
+  let x = r.right + 8;
+  if (x + tw > innerWidth - 8) x = r.left - tw - 8;
+  if (x < 8) x = clamp(r.left, 8, innerWidth - tw - 8);
+  const y = clamp(r.top, 8, innerHeight - th - 8);
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+const hideTip = () => { tip.hidden = true; };
+calEl.addEventListener('pointerover', e => { const el = e.target.closest('[data-tip]'); if (el && e.pointerType !== 'touch') showTip(el); });
+calEl.addEventListener('pointerout', e => { const el = e.target.closest('[data-tip]'); if (el && !el.contains(e.relatedTarget)) hideTip(); });
+calEl.addEventListener('focusin', e => { const el = e.target.closest('[data-tip]'); if (el) showTip(el); });
+calEl.addEventListener('focusout', hideTip);
+calEl.addEventListener('scroll', hideTip, { passive: true });
+
+/* =========================================================
+   Dragging: Movable blocks within their window, study blocks anywhere free
+   ========================================================= */
+let drag = null, suppressClick = false;
+
+// Things a dragged block may not overlap: fixed commitments, Movable items, pinned study.
+// Auto-placed study and Optional items don't block, since the planner re-flows them around your move.
+const isHard = o => o.kind === 'study' ? o.pinned : o.flex !== 'optional';
+
+function canPlace(ev, di, start) {
+  const end = start + (ev.end - ev.start), d = plan.days[di];
+  if (ev.kind === 'study') {
+    if (d.date < startOfDay(new Date())) return { ok: false, reason: 'that day has passed' };
+    if (ev.target && d.date >= ev.target.due) return { ok: false, reason: `that is on or after ${dlName(ev.target.dl)} is due` };
+  }
+  const hit = d.events.find(o => o !== ev && isHard(o) && o.start < end && start < o.end);
+  if (hit) return { ok: false, reason: `overlaps ${hit.kind === 'study' ? hit.course.name : hit.ref.name}` };
+  return { ok: true };
+}
+// earliest/latest start allowed while dragging
+function dragLimits(ev) {
+  const len = ev.end - ev.start;
+  if (ev.kind === 'study') return { min: wakeMin(), max: sleepMin() - len };
+  return { min: toMin(ev.ref.earliest), max: (toMin(ev.ref.latest) || 1440) - len };
+}
+function colAt(x) {
+  const col = $$('.day', calEl).find(c => { const r = c.getBoundingClientRect(); return x >= r.left && x < r.right; });
+  return col ? +col.dataset.day : null;
+}
+
+// Save a move (from dragging or the keyboard)
+function applyMove(ev, di, start) {
+  if (ev.kind === 'study') {
+    const rec = pinSession(ev, { day: di, start });
+    commit(`${ev.course.name} pinned to ${DAYS[di]} ${fmtRange(start, start + rec.len)}`);
+    return `[data-key="pin:${rec.id}"] .blk-main`;
+  }
+  weekMut().moved[ev.key] = start;
+  commit(`${ev.ref.name} moved to ${fmtRange(start, start + ev.ref.duration)}`);
+  return `[data-key="${ev.key}"]`;
+}
+
+function startDrag() {
+  const d = drag;
+  d.started = true;
+  hideTip();
+  d.blk.classList.add('dragging');
+  d.blk.style.left = '2px'; d.blk.style.width = 'calc(100% - 4px)';
+  d.label = document.createElement('span');
+  d.label.className = 'drag-time';
+  d.blk.appendChild(d.label);
+  if (d.ev.kind === 'movable' || d.ev.flex === 'movable') {
+    // highlight the allowed window in this day's column
+    const c = d.ev.ref, e0 = toMin(c.earliest), l0 = toMin(c.latest) || 1440;
+    const w = document.createElement('div');
+    w.className = 'drop-window';
+    w.style.top = (e0 - grid.gStart) * PPM + 'px';
+    w.style.height = (l0 - e0) * PPM + 'px';
+    w.innerHTML = `<span>Allowed: ${fmtRange(e0, l0)}</span>`;
+    d.blk.parentElement.appendChild(w);
+  } else {
+    // highlight the days this course can be studied on
+    calEl.classList.add('dragging-study');
+    $$('.day', calEl).forEach(col => {
+      const di = +col.dataset.day, date = plan.days[di].date;
+      const ok = date >= startOfDay(new Date()) && (!d.ev.target || date < d.ev.target.due);
+      col.classList.add(ok ? 'drop-ok' : 'drop-no');
+    });
+  }
+}
+
+calEl.addEventListener('pointerdown', e => {
+  if (e.button !== 0) return;
+  const blk = e.target.closest('[data-drag]');
+  if (!blk || e.target.closest('.chk')) return;
+  const ev = findEvent(blk.dataset.key);
+  if (!ev || ev.done) return;
+  drag = { blk, ev, x0: e.clientX, y0: e.clientY, id: e.pointerId, started: false, day: ev.day, start: ev.start, ok: true };
+});
+window.addEventListener('pointermove', e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  const dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
+  if (!drag.started) { if (Math.hypot(dx, dy) < 5) return; startDrag(); }
+  e.preventDefault();
+  const ev = drag.ev, len = ev.end - ev.start, lim = dragLimits(ev);
+  // vertical movement → time (snapped to 5 min); horizontal → day (study only)
+  const start = clamp(Math.round((ev.start + dy / PPM) / 5) * 5, lim.min, lim.max);
+  const di = ev.kind === 'study' ? (colAt(e.clientX) ?? drag.day) : ev.day;
+  const res = canPlace(ev, di, start);
+  Object.assign(drag, { day: di, start, ok: res.ok });
+  const col = $(`.day[data-day="${di}"]`, calEl);
+  if (drag.blk.parentElement !== col) col.appendChild(drag.blk);
+  drag.blk.style.top = (start - grid.gStart) * PPM + 'px';
+  drag.blk.classList.toggle('invalid', !res.ok);
+  drag.label.textContent = res.ok ? fmtRange(start, start + len) : `Can't: ${res.reason}`;
+});
+function endDrag(e, cancelled) {
+  if (!drag || (e && e.pointerId !== drag.id)) return;
+  const d = drag; drag = null;
+  calEl.classList.remove('dragging-study');
+  if (!d.started) return;                       // it was a plain click: let it through
+  suppressClick = true; setTimeout(() => { suppressClick = false; }, 60);
+  const changed = d.day !== d.ev.day || d.start !== d.ev.start;
+  if (cancelled || !changed) { renderCalendar(); return; }
+  if (!d.ok) { toast(`Can't move it there: ${d.label.textContent.replace("Can't: ", '')}`); renderCalendar(); return; }
+  refocus(applyMove(d.ev, d.day, d.start));
+}
+window.addEventListener('pointerup', e => endDrag(e, false));
+window.addEventListener('pointercancel', e => endDrag(e, true));
+// swallow the click that follows a drag so it doesn't open the editor
+document.addEventListener('click', e => { if (suppressClick) { e.stopPropagation(); e.preventDefault(); suppressClick = false; } }, true);
+
+// Keyboard: Alt+↑/↓ moves 15 min, Alt+←/→ moves a study block one day. Esc cancels a drag.
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { hideTip(); if (drag) { drag.started ? endDrag(null, true) : (drag = null); } return; }
+  if (!e.altKey || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+  const blk = e.target.closest && e.target.closest('[data-drag]');
+  if (!blk || !calEl.contains(blk)) return;
+  const ev = findEvent(blk.dataset.key);
+  if (!ev) return;
+  e.preventDefault();
+  const lim = dragLimits(ev);
+  let di = ev.day, start = ev.start;
+  if (e.key === 'ArrowUp') start -= 15;
+  if (e.key === 'ArrowDown') start += 15;
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    if (ev.kind !== 'study') { toast('Movable items stay on their day. Use Alt+↑/↓.'); return; }
+    di += e.key === 'ArrowLeft' ? -1 : 1;
+    if (di < 0 || di > 6) return;
+  }
+  if (start < lim.min || start > lim.max) { toast(ev.kind === 'study' ? 'That would be outside your waking hours' : `That's outside its ${fmtRange(toMin(ev.ref.earliest), toMin(ev.ref.latest))} window`); return; }
+  const res = canPlace(ev, di, start);
+  if (!res.ok) { toast(`Can't move it there: ${res.reason}`); return; }
+  refocus(applyMove(ev, di, start));
+});
+
+// keep the "now" line fresh (not while dragging or editing)
+setInterval(() => { if (state.ui.weekOffset === 0 && !dlg.open && !drag) renderCalendar(); }, 60000);
+
+render();
+// first load: start at the top of the waking day, and on phones show today's column
+$('#cal').scrollTop = 0;
+scrollToToday();
+</script>
+</body>
+</html>
